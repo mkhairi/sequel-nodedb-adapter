@@ -160,8 +160,8 @@ mirrored here.
 
 ## License
 
-BSD 2-Clause — same style as [ruby-pg](https://github.com/ged/ruby-pg/blob/master/LICENSE).
-See [LICENSE.md](LICENSE.md).
+Released under the **BSD 2-Clause License**. Full text: [LICENSE.md](LICENSE.md).
 
-This gem is an independent third-party adapter. It is not affiliated with,
-endorsed by, or maintained by the NodeDB project.
+Independent third-party adapter. Not affiliated with, endorsed by, or
+maintained by the NodeDB project. "NodeDB" is referenced solely to identify
+the database this gem connects to.
