@@ -148,7 +148,7 @@ These mirror the parser quirks documented in `nodedb-ruby` and the AR adapter.
 - **No `schema_migrations`.** Use `Sequel.migration` blocks but skip the
   built-in migrator's version-tracking table for now (or stub it manually).
 - **BUG-001 (`ResourcesExhausted` on non-timeseries INSERT).** Fixed
-  upstream in NodeDB source. See `../bugs/001-*.md`.
+  upstream in NodeDB source. See `../activerecord-nodedb-adapter/docs/bugs/001-*.md`.
 
 ## Roadmap
 
