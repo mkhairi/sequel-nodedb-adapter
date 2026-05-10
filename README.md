@@ -22,6 +22,15 @@ PostgreSQL-wire binary on port 6432.
 Sits on top of [`nodedb-ruby`](../nodedb-ruby) for connection handling,
 type mapping, and SQL building.
 
+## Companion packages
+
+| Repo | Role |
+| ---- | ---- |
+| [`mkhairi/nodedb-ruby`](https://github.com/mkhairi/nodedb-ruby) | core — pgwire connection, type map, SQL builders |
+| [`mkhairi/activerecord-nodedb-adapter`](https://github.com/mkhairi/activerecord-nodedb-adapter) | Rails ActiveRecord adapter (production-ready API surface) |
+| [`mkhairi/sequel-nodedb-adapter`](https://github.com/mkhairi/sequel-nodedb-adapter) | **this gem** — Sequel adapter (stub) |
+| [`mkhairi/nodedb-on-rails`](https://github.com/mkhairi/nodedb-on-rails) | Rails 8 sample app exercising every NodeDB engine |
+
 ## Status
 
 | Area              | State |
