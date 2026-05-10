@@ -43,16 +43,29 @@ type mapping, and SQL building.
 
 ## Installation
 
+Both this gem and `nodedb-ruby` are alpha and not yet on rubygems. Pull
+from GitHub via Bundler's `github:` shorthand:
+
+```ruby
+gem "sequel"
+gem "nodedb-ruby",           github: "mkhairi/nodedb-ruby",           branch: "main"
+gem "sequel-nodedb-adapter", github: "mkhairi/sequel-nodedb-adapter", branch: "main"
+```
+
+For SSH-only setups: `bundle config github.https false` (one-time).
+
+For monorepo development against local checkouts:
+
+```ruby
+gem "nodedb-ruby",           path: "../nodedb-ruby"
+gem "sequel-nodedb-adapter", path: "../sequel-nodedb-adapter"
+```
+
+Once the gems ship to rubygems, the standard form will work:
+
 ```ruby
 gem "sequel"
 gem "sequel-nodedb-adapter"
-```
-
-Or from source while the gem is unreleased:
-
-```ruby
-gem "nodedb-ruby",            path: "../nodedb-ruby"
-gem "sequel-nodedb-adapter",  path: "../sequel-nodedb-adapter"
 ```
 
 ## Usage
