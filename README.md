@@ -2,7 +2,7 @@
 
 > ## ⚠️ ALPHA / STUB — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.1`**.
+> Version: **`0.1.0.alpha.2`**.
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has **never
 > been used or tested in any production environment**. The Sequel-native DSL
@@ -155,7 +155,7 @@ DB.fetch(NodeDB::SQL::FTS.search(
 - [ ] Prepared-statement disable equivalent (NodeDB lacks extended-query)
 - [ ] RSpec / Sequel `spec_model` test suite
 - [ ] Connection-string parsing tests
-- [ ] CHANGELOG.md
+- [x] CHANGELOG.md
 - [ ] gemspec push to RubyGems
 
 ## Known issues
