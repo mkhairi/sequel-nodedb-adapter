@@ -41,6 +41,7 @@ type mapping, and SQL building.
 | Dataset           | Minimal pass-through (`fetch_rows` yields hashes) |
 | Engine helpers    | Not yet wired into Sequel DSL — call `NodeDB::SQL::*` directly |
 | Test suite        | None — depends on `activerecord-nodedb-adapter` test infrastructure |
+| NodeDB versions   | 0.1.x, 0.2.0, **0.2.1** (latest retest 2026-05-15 via AR adapter — see *Known issues*) |
 | Stability         | **Stub / experimental.** Use the AR adapter for production today. |
 
 ## Requirements
@@ -48,7 +49,8 @@ type mapping, and SQL building.
 - Ruby 3.2+
 - `sequel` >= 5.0
 - `nodedb-ruby` >= 0.1.0
-- A running NodeDB instance on `pgwire` (default `localhost:6432`)
+- A running NodeDB instance on `pgwire` (default `localhost:6432`) —
+  **v0.2.1 recommended** (resolves BUG-004 / 008 / 009 / 017 upstream)
 
 ## Installation
 
@@ -158,8 +160,24 @@ DB.fetch(NodeDB::SQL::FTS.search(
 
 ## Known issues
 
-These mirror the parser quirks documented in `nodedb-ruby` and the AR adapter.
+These mirror the parser quirks documented in `nodedb-ruby` and the AR
+adapter. For the full cross-gem bug log, see the
+[AR adapter bug index][ar-bugs]. Last retested: **2026-05-15** against
+**NodeDB v0.2.1**.
 
+[ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/bugs/README.md
+
+### Resolved upstream
+- **BUG-001** `ResourcesExhausted` on non-timeseries INSERT — fixed in NodeDB
+  source.
+- **BUG-004** `DROP COLLECTION IF EXISTS` parser quirk — fixed in v0.2.1.
+- **BUG-008** DELETE inside transaction silently dropped — fixed in v0.2.1.
+- **BUG-009** `INSERT` command tag missing OID slot (libpq stderr noise) —
+  fixed in v0.2.1.
+- **BUG-017** `SHOW server_version` stuck at `NodeDB 0.1.0` — fixed in
+  v0.2.1.
+
+### Still in play (Sequel-side workarounds)
 - **Qualified column refs return nil.** `literal_identifier` returns the bare
   name; do not wrap in `Sequel.identifier` chains that produce `"t"."c"`.
 - **`SELECT *` on document collections returns wrapped JSON.** Until the
@@ -169,8 +187,19 @@ These mirror the parser quirks documented in `nodedb-ruby` and the AR adapter.
   works because `Database#execute` calls `conn.exec` (simple-query) directly.
 - **No `schema_migrations`.** Use `Sequel.migration` blocks but skip the
   built-in migrator's version-tracking table for now (or stub it manually).
-- **BUG-001 (`ResourcesExhausted` on non-timeseries INSERT).** Fixed
-  upstream in NodeDB source. See `../activerecord-nodedb-adapter/docs/bugs/001-*.md`.
+
+### Open / limited workaround (NodeDB-side)
+- **BUG-002** `SELECT version()` returns empty.
+- **BUG-003** `PQserverVersion()` raises `PG::ConnectionBad`.
+- **BUG-011** Spatial `ST_GeomFromText` — v0.2.1 changed from silent
+  text-store to hard `unsupported: value expression` error; spatial engine
+  still unusable for real coordinates.
+- **BUG-012** Spatial engine drops non-geometry typed columns.
+- **BUG-014** `pg_try_advisory_lock` / `pg_advisory_unlock` — v0.2.1 parses
+  the calls but returns empty rows instead of booleans.
+- **BUG-015** DROP+CREATE preserves rows within retention window.
+- **BUG-016** `document_strict` 2nd INSERT collides on empty `id` when PK is
+  on a non-`id` column.
 
 ## Roadmap
 
