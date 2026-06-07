@@ -2,7 +2,7 @@
 
 > ## ⚠️ ALPHA / STUB — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.2`**.
+> Version: **`0.1.0.alpha.2`**. Tracks NodeDB **v0.3.0** (commit `25040fdf`, 2026-06-07).
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has **never
 > been used or tested in any production environment**. The Sequel-native DSL
@@ -41,16 +41,18 @@ type mapping, and SQL building.
 | Dataset           | Minimal pass-through (`fetch_rows` yields hashes) |
 | Engine helpers    | Not yet wired into Sequel DSL — call `NodeDB::SQL::*` directly |
 | Test suite        | None — depends on `activerecord-nodedb-adapter` test infrastructure |
-| NodeDB versions   | 0.1.x, 0.2.0, **0.2.1** (latest retest 2026-05-15 via AR adapter — see *Known issues*) |
+| NodeDB versions   | 0.1.x, 0.2.0, 0.2.1, **0.3.0** (latest retest 2026-06-07 via AR adapter — see *Known issues*) |
 | Stability         | **Stub / experimental.** Use the AR adapter for production today. |
 
 ## Requirements
 
 - Ruby 3.2+
 - `sequel` >= 5.0
-- `nodedb-ruby` >= 0.1.0
+- `nodedb-ruby` >= 0.1.0.alpha.5 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
 - A running NodeDB instance on `pgwire` (default `localhost:6432`) —
-  **v0.2.1 recommended** (resolves BUG-004 / 008 / 009 / 017 upstream)
+  **v0.3.0 recommended** (bundles persistent graph-stats, personalized
+  PageRank, the `BITEMPORAL` collection modifier, in-process pg_catalog
+  evaluator, and the operational `SHOW` surface)
 
 ## Installation
 
@@ -161,21 +163,23 @@ DB.fetch(NodeDB::SQL::FTS.search(
 ## Known issues
 
 These mirror the parser quirks documented in `nodedb-ruby` and the AR
-adapter. For the full cross-gem bug log, see the
-[AR adapter bug index][ar-bugs]. Last retested: **2026-05-15** against
-**NodeDB v0.2.1**.
+adapter. For the full cross-gem bug log (with reproductions and
+adapter response notes), see the [AR adapter bug index][ar-bugs].
+Last retested: **2026-06-07** against **NodeDB v0.3.0** (commit
+`25040fdf`).
 
 [ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/bugs/README.md
 
 ### Resolved upstream
-- **BUG-001** `ResourcesExhausted` on non-timeseries INSERT — fixed in NodeDB
-  source.
+- **BUG-001** `ResourcesExhausted` on non-timeseries INSERT — fixed in
+  NodeDB v0.2.0.
 - **BUG-004** `DROP COLLECTION IF EXISTS` parser quirk — fixed in v0.2.1.
-- **BUG-008** DELETE inside transaction silently dropped — fixed in v0.2.1.
-- **BUG-009** `INSERT` command tag missing OID slot (libpq stderr noise) —
-  fixed in v0.2.1.
+- **BUG-005 / 006 / 009 / 010 / 013** — prepared-statement
+  RowDescription, boolean OID 0, INSERT command tag, `text_match()`
+  server-side filtering, and FTS fuzzy projection. All landed across
+  the v0.2.x line.
 - **BUG-017** `SHOW server_version` stuck at `NodeDB 0.1.0` — fixed in
-  v0.2.1.
+  v0.2.1; v0.3.0 reports `NodeDB 0.3.0`.
 
 ### Still in play (Sequel-side workarounds)
 - **Qualified column refs return nil.** `literal_identifier` returns the bare
@@ -187,19 +191,47 @@ adapter. For the full cross-gem bug log, see the
   works because `Database#execute` calls `conn.exec` (simple-query) directly.
 - **No `schema_migrations`.** Use `Sequel.migration` blocks but skip the
   built-in migrator's version-tracking table for now (or stub it manually).
+- **No native graph_stats / ops helpers / bitemporal yet.** The AR
+  adapter wires `Model.graph_stats`, `connection.show_stats / metrics
+  / memory / tenant`, and `create_collection ..., bitemporal: true` on
+  top of `nodedb-ruby` 0.1.0.alpha.5. Sequel callers can reach the
+  same SQL surface today by issuing raw fetches:
+  `DB.fetch("SHOW GRAPH STATS").all`, `DB.fetch("SHOW MEMORY").all`,
+  `DB.run(NodeDB::SQL::Collection.create(:orders, engine: :document_strict, columns: ["id TEXT PRIMARY KEY"], flags: [:bitemporal]))`.
+  Sequel-native plugins are roadmap work.
 
-### Open / limited workaround (NodeDB-side)
+### Open / limited workaround (NodeDB-side, v0.3.0 retest 2026-06-07)
 - **BUG-002** `SELECT version()` returns empty.
 - **BUG-003** `PQserverVersion()` raises `PG::ConnectionBad`.
-- **BUG-011** Spatial `ST_GeomFromText` — v0.2.1 changed from silent
-  text-store to hard `unsupported: value expression` error; spatial engine
-  still unusable for real coordinates.
+- **BUG-008** DELETE-in-txn — v0.3.0 psql probe with
+  `INT NOT NULL PRIMARY KEY` persists the DELETE inside `BEGIN/COMMIT`,
+  but writes against `document_strict` + text PK still no-op on both
+  pgwire and native. AR adapter ships an `exec_delete` override;
+  Sequel callers should reissue DELETE outside the transaction
+  manually until upstream lands the document_strict + text-PK path.
+- **BUG-011** Spatial `ST_GeomFromText` — hard parse error; spatial
+  engine still unusable for real coordinates.
 - **BUG-012** Spatial engine drops non-geometry typed columns.
-- **BUG-014** `pg_try_advisory_lock` / `pg_advisory_unlock` — v0.2.1 parses
-  the calls but returns empty rows instead of booleans.
+- **BUG-014** `pg_try_advisory_lock` / `pg_advisory_unlock` — parsed
+  but still return empty rows instead of booleans.
 - **BUG-015** DROP+CREATE preserves rows within retention window.
-- **BUG-016** `document_strict` 2nd INSERT collides on empty `id` when PK is
-  on a non-`id` column.
+- **BUG-016** `document_strict` 2nd INSERT collides on empty `id` when
+  PK is on a non-`id` column.
+- **BUG-018** Native transport returns document-backed rows as raw
+  `{data,id}` blobs (only document model has an adapter-side unwrap
+  today; KV + vector still surface the raw shape).
+- **BUG-019** vquery pg_catalog evaluator rejects `::regclass`,
+  cross-vtable joins, `ANY(current_schemas)`, and `pg_type.typelem`.
+  Sequel's `db.tables` / `schema(...)` may fail or return narrower
+  results than upstream PostgreSQL; raw `DB.fetch("SHOW COLLECTIONS")`
+  is the safe fallback.
+- **BUG-020** `SHOW GRAPH STATS '<collection>'` returns all-zero
+  counters. Use the tenant-wide form
+  `DB.fetch("SHOW GRAPH STATS").all` and filter on the `collection`
+  column in Ruby.
+- **BUG-021** `BITEMPORAL` collections accept INSERTs but every
+  SELECT shape returns zero rows. The `flags: [:bitemporal]` modifier
+  is ship-ready as a DDL surface; reads are broken upstream.
 
 ## Roadmap
 
