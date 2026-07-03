@@ -11,6 +11,28 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.3] — 2026-07-03
+
+### Fixed
+- **The adapter works now.** The Dataset subclass was never registered
+  (`dataset_class_default` missing), so every query on Sequel 5 crashed
+  with `NoMethodError: fetch_rows`; `Database#execute` also ignored
+  blocks, so results never reached `fetch_rows`.
+- Sequel's SQL-standard `:upcase` identifier folding disabled
+  (`Dataset#input_identifier`) and identifiers emitted bare — NodeDB
+  stores identifiers as written and silently matches zero rows for
+  table-qualified refs.
+- `schema_parse_table` dedupes the duplicate built-in `id` row that
+  `DESCRIBE` emits on `document_strict` collections.
+
+### Changed
+- README refreshed for the 2026-07-02 retest against upstream
+  `3a06321e`: latest-upstream-only Known issues, Sequel-side
+  conventions, working Dataset CRUD usage section.
+
+Manually verified against live NodeDB `3a06321e` (pgwire):
+insert / select / where / count / update / delete / schema round-trip.
+
 ## [0.1.0.alpha.2] — 2026-05-15
 
 ### Changed
