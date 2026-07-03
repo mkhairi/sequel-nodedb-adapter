@@ -1,18 +1,20 @@
 # sequel-nodedb-adapter
 
-> ## ⚠️ ALPHA / STUB — DO NOT USE IN PRODUCTION
+> ## ⚠️ ALPHA — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.2`**. Tracks NodeDB **v0.3.0** (commit `25040fdf`, 2026-06-07).
+> Version: **`0.1.0.alpha.3`**. Tracks NodeDB upstream `main` at
+> `3a06321e` (post-v0.3.0, retested 2026-07-02).
 >
-> This adapter is **experimental, incomplete, and unaudited**. It has **never
-> been used or tested in any production environment**. The Sequel-native DSL
-> for vector / graph / timeseries is not yet wired in — call
-> `NodeDB::SQL::*` builders directly for those features. APIs may change
-> without notice between alpha releases.
+> This adapter is **experimental, incomplete, and unaudited**. It has
+> **never been used or tested in any production environment**. Core
+> Dataset CRUD works as of alpha.3; the Sequel-native DSL for
+> vector / graph / timeseries is not yet wired in — call
+> `NodeDB::SQL::*` builders directly for those features. APIs may
+> change without notice between alpha releases.
 >
-> Run it on disposable data only. Do not point it at customer data, billing
-> systems, anything regulated, or any system you cannot trivially rebuild from
-> scratch.
+> Run it on disposable data only. Do not point it at customer data,
+> billing systems, anything regulated, or any system you cannot
+> trivially rebuild from scratch.
 
 [Sequel](https://sequel.jeremyevans.net/) adapter for [NodeDB](https://nodedb.dev) —
 a distributed multi-model database that exposes vector, graph, document,
@@ -37,12 +39,12 @@ type mapping, and SQL building.
 | ----------------- | ----- |
 | Adapter scheme    | Working — registered as `:nodedb` |
 | Connection        | Working — delegates to `NodeDB::Connection` |
-| Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals |
-| Dataset           | Minimal pass-through (`fetch_rows` yields hashes) |
+| Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals, dedupes the duplicate `id` row |
+| Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
 | Engine helpers    | Not yet wired into Sequel DSL — call `NodeDB::SQL::*` directly |
-| Test suite        | None — depends on `activerecord-nodedb-adapter` test infrastructure |
-| NodeDB versions   | 0.1.x, 0.2.0, 0.2.1, **0.3.0** (latest retest 2026-06-07 via AR adapter — see *Known issues*) |
-| Stability         | **Stub / experimental.** Use the AR adapter for production today. |
+| Test suite        | None — manual repro recipe per PR (see CLAUDE.md) |
+| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-02 against `3a06321e`) |
+| Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
 ## Requirements
 
@@ -50,9 +52,9 @@ type mapping, and SQL building.
 - `sequel` >= 5.0
 - `nodedb-ruby` >= 0.1.0.alpha.5 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
 - A running NodeDB instance on `pgwire` (default `localhost:6432`) —
-  **v0.3.0 recommended** (bundles persistent graph-stats, personalized
-  PageRank, the `BITEMPORAL` collection modifier, in-process pg_catalog
-  evaluator, and the operational `SHOW` surface)
+  **latest upstream `main` recommended** (verified against `3a06321e`).
+  Post-June builds changed the on-disk format; start daemons on a
+  fresh data directory.
 
 ## Installation
 
@@ -106,6 +108,24 @@ URL-style works too:
 DB = Sequel.connect("nodedb://nodedb:#{ENV['NODEDB_PASSWORD']}@localhost:6432/myapp")
 ```
 
+### Dataset CRUD
+
+```ruby
+DB.run(<<~SQL)
+  CREATE COLLECTION items (id TEXT PRIMARY KEY, name TEXT, score FLOAT)
+  WITH (engine='document_strict')
+SQL
+
+DB[:items].insert(id: "a", name: "alpha", score: 7.0)
+DB[:items].where(name: "alpha").select(:id).all   # => [{id: "a"}]
+DB[:items].count                                  # => 1
+DB[:items].where(id: "a").update(score: 9.0)
+DB[:items].where(id: "a").delete                  # autocommit — clean path
+```
+
+Row values arrive as strings (TypeMap casting is roadmap). Keep
+identifiers unqualified — the adapter emits bare names by design.
+
 ### Schema introspection
 
 ```ruby
@@ -142,11 +162,12 @@ DB.fetch(NodeDB::SQL::FTS.search(
 - [x] Adapter scheme registration (`set_adapter_scheme :nodedb`)
 - [x] `Sequel::Database#connect` via `NodeDB::Connection`
 - [x] `disconnect_connection`
-- [x] `execute(sql)` with `PG::Error` -> `NodeDB::QueryError` translation
-- [x] `schema_parse_table` using NodeDB's `DESCRIBE`
+- [x] `execute(sql)` with `PG::Error` -> `NodeDB::QueryError` translation, yields results to blocks
+- [x] Dataset class wiring (`dataset_class_default`) — CRUD round-trips
+- [x] `schema_parse_table` using NodeDB's `DESCRIBE` (dedupes the duplicate `id` row)
 - [x] Internal-column filter (drops `__storage` etc.)
-- [x] Bare-identifier `literal_identifier` (NodeDB rejects qualified refs)
-- [x] Pass-through `Dataset#fetch_rows`
+- [x] Bare unqualified identifiers (`input_identifier` / `quoted_identifier_append`) — NodeDB stores identifiers as written and silently matches zero rows for qualified refs
+- [x] `Dataset#fetch_rows` with symbol keys + `columns` population
 
 ### Pending
 - [ ] Native Sequel migration DSL (`create_collection`, `create_vector_index`)
@@ -162,76 +183,58 @@ DB.fetch(NodeDB::SQL::FTS.search(
 
 ## Known issues
 
-These mirror the parser quirks documented in `nodedb-ruby` and the AR
-adapter. For the full cross-gem bug log (with reproductions and
-adapter response notes), see the [AR adapter bug index][ar-bugs].
-Last retested: **2026-06-07** against **NodeDB v0.3.0** (commit
-`25040fdf`).
+Tracks the **latest upstream only** (resolved issues pruned; git
+history keeps the record). For the full open-bug log with
+reproductions, see the [AR adapter bug index][ar-bugs] and the
+user-facing summary in [KNOWN_ISSUES.md][ar-known]. Last retested:
+**2026-07-02** against upstream `main` at `3a06321e`.
 
 [ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/bugs/README.md
+[ar-known]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/KNOWN_ISSUES.md
 
-### Resolved upstream
-- **BUG-001** `ResourcesExhausted` on non-timeseries INSERT — fixed in
-  NodeDB v0.2.0.
-- **BUG-004** `DROP COLLECTION IF EXISTS` parser quirk — fixed in v0.2.1.
-- **BUG-005 / 006 / 009 / 010 / 013** — prepared-statement
-  RowDescription, boolean OID 0, INSERT command tag, `text_match()`
-  server-side filtering, and FTS fuzzy projection. All landed across
-  the v0.2.x line.
-- **BUG-017** `SHOW server_version` stuck at `NodeDB 0.1.0` — fixed in
-  v0.2.1; v0.3.0 reports `NodeDB 0.3.0`.
+### Sequel-side conventions
 
-### Still in play (Sequel-side workarounds)
-- **Qualified column refs return nil.** `literal_identifier` returns the bare
-  name; do not wrap in `Sequel.identifier` chains that produce `"t"."c"`.
-- **`SELECT *` on document collections returns wrapped JSON.** Until the
-  adapter unwraps, project explicit columns: `DB[:articles].select(:id, :title)`.
-- **No prepared statements.** NodeDB sends `DataRow` without prior
-  `RowDescription` for prepared statements. Sequel's default execution mode
-  works because `Database#execute` calls `conn.exec` (simple-query) directly.
-- **No `schema_migrations`.** Use `Sequel.migration` blocks but skip the
-  built-in migrator's version-tracking table for now (or stub it manually).
-- **No native graph_stats / ops helpers / bitemporal yet.** The AR
-  adapter wires `Model.graph_stats`, `connection.show_stats / metrics
-  / memory / tenant`, and `create_collection ..., bitemporal: true` on
-  top of `nodedb-ruby` 0.1.0.alpha.5. Sequel callers can reach the
-  same SQL surface today by issuing raw fetches:
-  `DB.fetch("SHOW GRAPH STATS").all`, `DB.fetch("SHOW MEMORY").all`,
-  `DB.run(NodeDB::SQL::Collection.create(:orders, engine: :document_strict, columns: ["id TEXT PRIMARY KEY"], flags: [:bitemporal]))`.
-  Sequel-native plugins are roadmap work.
+- **Identifiers are emitted bare and unqualified.** NodeDB stores
+  identifiers as written (the adapter disables Sequel's SQL-standard
+  upcase folding) and silently matches zero rows for table-qualified
+  refs (BUG-025) — avoid `Sequel[:t][:c]` qualification and joins.
+- **`SELECT *` on schemaless document collections returns wrapped
+  JSON.** Project explicit columns: `DB[:articles].select(:id, :title)`
+  — or use `engine: :document_strict`.
+- **No prepared statements.** Sequel's default path is fine here —
+  `Database#execute` uses simple-query `conn.exec` directly.
+- **No `schema_migrations` integration.** Use `Sequel.migration`
+  blocks but skip the built-in migrator's version tracking (or stub it
+  manually).
+- **Engine surfaces via raw SQL.** `DB.fetch("SHOW GRAPH STATS 'social_nodes'").all`
+  (scoped form works on current upstream),
+  `DB.fetch("SHOW MEMORY").all`, and `NodeDB::SQL::*` builders for
+  vector/graph/FTS/DDL. Sequel-native plugins are roadmap work.
+- **Row values arrive as strings** (no TypeMap casting yet — roadmap).
 
-### Open / limited workaround (NodeDB-side, v0.3.0 retest 2026-06-07)
-- **BUG-002** `SELECT version()` returns empty.
-- **BUG-003** `PQserverVersion()` raises `PG::ConnectionBad`.
-- **BUG-008** DELETE-in-txn — v0.3.0 psql probe with
-  `INT NOT NULL PRIMARY KEY` persists the DELETE inside `BEGIN/COMMIT`,
-  but writes against `document_strict` + text PK still no-op on both
-  pgwire and native. AR adapter ships an `exec_delete` override;
-  Sequel callers should reissue DELETE outside the transaction
-  manually until upstream lands the document_strict + text-PK path.
-- **BUG-011** Spatial `ST_GeomFromText` — hard parse error; spatial
-  engine still unusable for real coordinates.
-- **BUG-012** Spatial engine drops non-geometry typed columns.
-- **BUG-014** `pg_try_advisory_lock` / `pg_advisory_unlock` — parsed
-  but still return empty rows instead of booleans.
-- **BUG-015** DROP+CREATE preserves rows within retention window.
-- **BUG-016** `document_strict` 2nd INSERT collides on empty `id` when
-  PK is on a non-`id` column.
-- **BUG-018** Native transport returns document-backed rows as raw
-  `{data,id}` blobs (only document model has an adapter-side unwrap
-  today; KV + vector still surface the raw shape).
-- **BUG-019** vquery pg_catalog evaluator rejects `::regclass`,
-  cross-vtable joins, `ANY(current_schemas)`, and `pg_type.typelem`.
-  Sequel's `db.tables` / `schema(...)` may fail or return narrower
-  results than upstream PostgreSQL; raw `DB.fetch("SHOW COLLECTIONS")`
-  is the safe fallback.
-- **BUG-020** `SHOW GRAPH STATS '<collection>'` returns all-zero
-  counters. Use the tenant-wide form
-  `DB.fetch("SHOW GRAPH STATS").all` and filter on the `collection`
-  column in Ruby.
-- **BUG-021** `BITEMPORAL` collections accept INSERTs but every
-  SELECT shape returns zero rows. The `flags: [:bitemporal]` modifier
-  is ship-ready as a DDL surface; reads are broken upstream.
+### NodeDB-side (open upstream, affects Sequel callers)
+
+- **BUG-008** — DELETE committed inside `DB.transaction { }` leaves a
+  stale PK point-lookup phantom (`WHERE id = ...` returns the deleted
+  row until the key is re-inserted). Sequel's default autocommit
+  deletes (`DB[:t].where(...).delete`) take the clean path — prefer
+  them.
+- **Bitemporal caveats** — INSERT/DELETE committed inside explicit
+  transactions are lost on `BITEMPORAL` collections (BUG-024): write
+  autocommit (Sequel's default). Never DROP + CREATE a bitemporal
+  collection under the same name (BUG-028) and never name a column
+  `bitemporal_id` (BUG-026). Reads — plain SELECT and
+  `AS OF SYSTEM TIME` history — work on current upstream.
+- **BUG-003** — libpq's `PQserverVersion()` raises; query
+  `current_setting('server_version_num')` instead.
+- **BUG-014** — advisory locks return empty rows (upstream won't-fix
+  on pgwire).
+- **BUG-019** — pg_catalog gaps: `db.tables` may fail or narrow;
+  `DB.fetch("SHOW COLLECTIONS").all` is the safe fallback.
+- **BUG-023** — `MATCH ... IN <collection>` ignores collection scope;
+  avoid MATCH until upstream fixes it.
+- **BUG-018** — native transport read shapes broken; this adapter is
+  pgwire-only, which is unaffected.
 
 ## Roadmap
 
