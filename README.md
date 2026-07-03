@@ -134,25 +134,38 @@ DB.schema(:articles)
 #     [:title, { db_type: "TEXT", allow_null: true,  ... }], ...]
 ```
 
-### Engine SQL via the core gem
-
-The adapter does not (yet) extend Sequel's DSL with vector/graph/etc.
-helpers. Use `NodeDB::SQL::*` builders and pass strings to `DB.fetch` /
-`DB.execute`:
+### NodeDB DDL helpers
 
 ```ruby
-DB.fetch(NodeDB::SQL::Vector.search(
-  table:     "articles",
-  column:    "embedding",
-  embedding: [0.1, 0.2, 0.3],
-  limit:     10
-)).all
+DB.create_collection(:articles)                       # schemaless document
+DB.create_collection(:metrics, engine: :timeseries,
+  engine_options: { retention: "7d" })
+DB.create_collection(:audit, engine: :document_strict,
+  columns: ["id TEXT PRIMARY KEY", "actor TEXT"],
+  bitemporal: true)                                   # emits ENGINE = suffix
 
+DB.create_vector_index(:idx_articles_emb,
+  on: :articles, column: :embedding, metric: :cosine, dim: 384)
+
+DB.collections                       # => ["articles", "metrics", ...]
+DB.drop_collection(:articles, if_exists: true)
+```
+
+These work inside `Sequel.migration` blocks (skip the built-in
+migrator's version tracking — see Known issues).
+
+### Engine helpers
+
+```ruby
+DB.search_vector(:articles, :embedding, [0.1, 0.2, 0.3], limit: 10)
+# => [{ "surrogate" => 12, "distance" => 0.043 }, ...]
+
+DB.graph_stats(collection: "social_nodes")   # scoped counters
+DB.graph_stats                               # tenant-wide
+
+# Anything else via the nodedb-ruby builders + raw fetch:
 DB.fetch(NodeDB::SQL::FTS.search(
-  table:  "posts",
-  column: "body",
-  query:  "'machine learning'",
-  limit:  20
+  table: "posts", column: "body", query: "'machine learning'", limit: 20
 )).all
 ```
 
@@ -169,16 +182,24 @@ DB.fetch(NodeDB::SQL::FTS.search(
 - [x] Bare unqualified identifiers (`input_identifier` / `quoted_identifier_append`) — NodeDB stores identifiers as written and silently matches zero rows for qualified refs
 - [x] `Dataset#fetch_rows` with symbol keys + `columns` population
 
-### Pending
-- [ ] Native Sequel migration DSL (`create_collection`, `create_vector_index`)
-- [ ] Sequel plugin: `Sequel::Plugins::NodedbVector` for `Article.search_vector`
-- [ ] Sequel plugin: `Sequel::Plugins::NodedbGraph`
-- [ ] Sequel plugin: `Sequel::Plugins::NodedbTimeseries`
-- [ ] Type cast result rows through `NodeDB::TypeMap` (currently strings)
-- [ ] Prepared-statement disable equivalent (NodeDB lacks extended-query)
-- [ ] RSpec / Sequel `spec_model` test suite
-- [ ] Connection-string parsing tests
+- [x] NodeDB DDL helpers on `Database`: `create_collection` (engines,
+      `engine_options:`, `bitemporal:`), `drop_collection(if_exists:)`,
+      `collections`, `create_vector_index` / `drop_vector_index` —
+      usable inside `Sequel.migration` blocks
+- [x] Engine helpers on `Database`: `search_vector` (surrogate +
+      distance rows), `graph_stats` (scoped + tenant-wide)
+- [x] Simple-query-only execution (NodeDB lacks extended-query
+      `RowDescription`; `Database#execute` uses `conn.exec` directly)
+- [x] RSpec integration suite (`spec/`, 8 examples against live NodeDB,
+      includes `nodedb://` URL connection-string coverage)
 - [x] CHANGELOG.md
+
+### Pending
+- [ ] Sequel model plugins (`Sequel::Plugins::NodedbVector` /
+      `NodedbGraph` / `NodedbTimeseries`) — Database-level helpers
+      cover the surface today
+- [ ] Type cast result rows through `NodeDB::TypeMap` (currently strings)
+- [ ] Built-in migrator version tracking (`schema_migrations` equivalent)
 - [ ] gemspec push to RubyGems
 
 ## Known issues
@@ -225,6 +246,10 @@ user-facing summary in [KNOWN_ISSUES.md][ar-known]. Last retested:
   collection under the same name (BUG-028) and never name a column
   `bitemporal_id` (BUG-026). Reads — plain SELECT and
   `AS OF SYSTEM TIME` history — work on current upstream.
+- **BUG-029** — `count(*)` materializes a per-collection row counter
+  on first read that DELETE never decrements; counts drift upward
+  permanently once rows are deleted. Assert cardinality via scans
+  (`ds.select(:id).all.length`) around delete operations.
 - **BUG-003** — libpq's `PQserverVersion()` raises; query
   `current_setting('server_version_num')` instead.
 - **BUG-014** — advisory locks return empty rows (upstream won't-fix

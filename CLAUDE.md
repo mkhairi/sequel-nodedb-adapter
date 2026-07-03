@@ -11,18 +11,23 @@ Sequel adapter for NodeDB. Registers the `:nodedb` scheme. Delegates
 connection / execution to `NodeDB::Connection` and schema introspection
 to NodeDB's `DESCRIBE`. Sits on top of `nodedb-ruby`.
 
-**Stub status:** Sequel-native DSL for vector / graph / timeseries is
-not yet wired in. New NodeDB features land first in
+Dataset CRUD, DDL helpers (`create_collection`, `create_vector_index`),
+and engine helpers (`search_vector`, `graph_stats`) work at the
+`Database` level. Sequel model plugins and TypeMap result casting are
+roadmap. New NodeDB features land first in
 `activerecord-nodedb-adapter`, then mirror here.
 
-Status: **alpha / stub** (`0.1.0.alpha.N`).
+Status: **alpha** (`0.1.0.alpha.N`).
 
 ## Tests
 
-This gem has **no test suite yet**. Adding one (Sequel `spec_model` +
-integration smoke against live NodeDB) is on the roadmap. Until then,
-every PR must include a manual reproduction recipe in the PR body that
-demonstrates the change against a running NodeDB.
+```bash
+bundle exec rspec
+```
+
+Requires a live NodeDB on `localhost:6432` (integration specs skip if
+unreachable). 8 examples; must stay 0 failures before any PR merges.
+New behaviour requires a spec.
 
 ## Release checklist additions
 
