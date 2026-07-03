@@ -11,6 +11,23 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.4] — 2026-07-03
+
+### Added
+- Database-level NodeDB DDL helpers: `create_collection` (engines,
+  `engine_options:`, `bitemporal:`), `drop_collection(if_exists:)`,
+  `collections`, `create_vector_index` / `drop_vector_index`.
+- Database-level engine helpers: `search_vector` (surrogate + distance
+  rows), `graph_stats` (scoped + tenant-wide).
+- First automated test suite: 8 rspec integration examples against
+  live NodeDB (URL connect, bare-identifier SQL, Dataset CRUD, schema
+  dedupe, DDL round-trips, vector search, scoped graph stats).
+
+### Notes
+- Writing the suite isolated upstream BUG-029: `count(*)` materializes
+  a row counter that DELETE never decrements. Assert cardinality via
+  scans around deletes.
+
 ## [0.1.0.alpha.3] — 2026-07-03
 
 ### Fixed
