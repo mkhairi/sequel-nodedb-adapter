@@ -46,16 +46,29 @@ module Sequel
 
         def execute(sql, opts = OPTS)
           synchronize(opts[:server]) do |conn|
-            conn.exec(sql)
+            result = conn.exec(sql)
+            yield result if block_given?
+            result
           rescue PG::Error => e
             raise ::NodeDB::QueryError, e.message
           end
         end
 
+        # Wire our Dataset subclass in — without this Sequel hands out
+        # bare Sequel::Dataset instances, which have no fetch_rows and
+        # crash on the first query.
+        def dataset_class_default
+          Dataset
+        end
+
         # NodeDB uses DESCRIBE instead of information_schema.columns.
+        # DESCRIBE can emit a duplicate built-in `id` row on
+        # document_strict collections (upstream BUG-007) — dedupe.
         def schema_parse_table(table_name, _opts = {})
           rows = execute(::NodeDB::SQL::Collection.describe(table_name.to_s))
-          rows.reject { |r| r["field"].to_s.start_with?("__") }.map do |r|
+          rows.reject { |r| r["field"].to_s.start_with?("__") }
+              .uniq { |r| r["field"].to_s }
+              .map do |r|
             pg_type, _oid = ::NodeDB::TypeMap.resolve(r["type"].to_s)
             nullable = r["nullable"].to_s == "true"
             [r["field"].to_sym, { db_type: pg_type, allow_null: nullable, primary_key: false, default: nil }]
@@ -73,8 +86,24 @@ module Sequel
       class Dataset < Sequel::Dataset
         def fetch_rows(sql)
           execute(sql) do |result|
+            self.columns = result.fields.map(&:to_sym) if result.respond_to?(:fields)
             result.each { |row| yield row.transform_keys(&:to_sym) }
           end
+          self
+        end
+
+        # NodeDB stores identifiers as written — the base Dataset's
+        # SQL-standard :upcase folding would turn every query into
+        # SELECT ID FROM TBL and match nothing.
+        def input_identifier(v)
+          v.to_s
+        end
+
+        # NodeDB silently matches zero rows for table-qualified column
+        # refs (BUG-025) and rejects quoted identifiers in several
+        # engine clauses — emit bare identifiers everywhere.
+        def quoted_identifier_append(sql, name)
+          sql << name.to_s
         end
       end
     end
