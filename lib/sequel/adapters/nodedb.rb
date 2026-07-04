@@ -129,16 +129,21 @@ module Sequel
         # ---- NodeDB engine helpers ----------------------------------
 
         # Nearest-neighbour search. Returns Array of
-        # { "surrogate" => ..., "distance" => ... } hashes — SEARCH does
-        # not project document fields.
+        # { "id" => ..., "surrogate" => ..., "distance" => ... } hashes.
+        # SEARCH projects id/_surrogate/distance as real result columns;
+        # `id` is only the document id on vector-engine collections (a
+        # result ordinal on document collections with a vector index).
         def search_vector(table, column, embedding, limit: 10, filter: nil)
           result = execute(::NodeDB::SQL::Vector.search(
             table: table.to_s, column: column.to_s,
             embedding: embedding, limit: limit, filter: filter
           ))
           result.map do |row|
-            parsed = JSON.parse(row["result"])
-            { "surrogate" => parsed["_surrogate"], "distance" => parsed["distance"] }
+            {
+              "id"        => row["id"],
+              "surrogate" => row["_surrogate"] && Integer(row["_surrogate"]),
+              "distance"  => row["distance"]&.to_f
+            }
           end
         end
 
