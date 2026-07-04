@@ -26,8 +26,8 @@ bundle exec rspec
 ```
 
 Requires a live NodeDB on `localhost:6432` (integration specs skip if
-unreachable). 8 examples; must stay 0 failures before any PR merges.
-New behaviour requires a spec.
+unreachable). Must stay 0 failures before any PR merges. New behaviour
+requires a spec.
 
 ## Release checklist additions
 
