@@ -11,6 +11,25 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.5] — 2026-07-04
+
+Tracks NodeDB upstream `main` at `f8a4df44` (post-v0.3.0).
+
+### Fixed
+
+- `Database#search_vector` consumes the projected
+  `id`/`_surrogate`/`distance` SEARCH columns (upstream removed the
+  single `result` JSON-blob cell); result hashes now expose `"id"`
+  (#13). Note: `id` is the document id only on vector-engine
+  collections (a result ordinal on document collections with a vector
+  index).
+
+### Documentation
+
+- README refreshed for the retest: BUG-018 pruned (native transport at
+  result-shape parity), BUG-030 GROUP BY alias-drop caveat, stale
+  status rows corrected (#13).
+
 ## [0.1.0.alpha.4] — 2026-07-03
 
 ### Added
