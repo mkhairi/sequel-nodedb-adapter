@@ -205,12 +205,14 @@ DB.fetch(NodeDB::SQL::FTS.search(
 ## Known issues
 
 Tracks the **latest upstream only** (resolved issues pruned; git
-history keeps the record). For the full open-bug log with
-reproductions, see the [AR adapter bug index][ar-bugs] and the
-user-facing summary in [KNOWN_ISSUES.md][ar-known]. Last retested:
-**2026-07-04** against upstream `main` at `67c4572d`.
+history keeps the record). Canonical per-bug records (reproductions,
+workaround history, retests) live in the
+[AR adapter issue tracker][ar-bugs] — titles prefixed
+`[upstream:NodeDB] BUG-NNN`; the user-facing summary is
+[KNOWN_ISSUES.md][ar-known]. Last retested:
+**2026-07-04** against upstream `main` at `f8a4df44`.
 
-[ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/bugs/README.md
+[ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/issues?q=%22%5Bupstream%3ANodeDB%5D%22
 [ar-known]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/KNOWN_ISSUES.md
 
 ### Sequel-side conventions
