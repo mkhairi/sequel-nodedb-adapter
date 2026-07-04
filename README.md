@@ -2,8 +2,8 @@
 
 > ## ⚠️ ALPHA — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.3`**. Tracks NodeDB upstream `main` at
-> `3a06321e` (post-v0.3.0, retested 2026-07-02).
+> Version: **`0.1.0.alpha.4`**. Tracks NodeDB upstream `main` at
+> `67c4572d` (post-v0.3.0, retested 2026-07-04).
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has
 > **never been used or tested in any production environment**. Core
@@ -41,9 +41,9 @@ type mapping, and SQL building.
 | Connection        | Working — delegates to `NodeDB::Connection` |
 | Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals, dedupes the duplicate `id` row |
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
-| Engine helpers    | Not yet wired into Sequel DSL — call `NodeDB::SQL::*` directly |
-| Test suite        | None — manual repro recipe per PR (see CLAUDE.md) |
-| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-02 against `3a06321e`) |
+| Engine helpers    | `Database#search_vector` / `#graph_stats`; other engines via `NodeDB::SQL::*` builders |
+| Test suite        | `bundle exec rspec` — 8 examples against a live daemon |
+| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-04 against `67c4572d`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
 ## Requirements
@@ -52,7 +52,7 @@ type mapping, and SQL building.
 - `sequel` >= 5.0
 - `nodedb-ruby` >= 0.1.0.alpha.5 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
 - A running NodeDB instance on `pgwire` (default `localhost:6432`) —
-  **latest upstream `main` recommended** (verified against `3a06321e`).
+  **latest upstream `main` recommended** (verified against `67c4572d`).
   Post-June builds changed the on-disk format; start daemons on a
   fresh data directory.
 
@@ -208,7 +208,7 @@ Tracks the **latest upstream only** (resolved issues pruned; git
 history keeps the record). For the full open-bug log with
 reproductions, see the [AR adapter bug index][ar-bugs] and the
 user-facing summary in [KNOWN_ISSUES.md][ar-known]. Last retested:
-**2026-07-02** against upstream `main` at `3a06321e`.
+**2026-07-04** against upstream `main` at `67c4572d`.
 
 [ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/bugs/README.md
 [ar-known]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/KNOWN_ISSUES.md
@@ -258,8 +258,9 @@ user-facing summary in [KNOWN_ISSUES.md][ar-known]. Last retested:
   `DB.fetch("SHOW COLLECTIONS").all` is the safe fallback.
 - **BUG-023** — `MATCH ... IN <collection>` ignores collection scope;
   avoid MATCH until upstream fixes it.
-- **BUG-018** — native transport read shapes broken; this adapter is
-  pgwire-only, which is unaffected.
+- **BUG-030** — GROUP BY output drops group-key column aliases (and
+  returns empty cells for unaliased aggregates) on current upstream.
+  Alias your aggregates and read group keys by base column name.
 
 ## Roadmap
 

@@ -60,13 +60,14 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
   end
 
   describe "engine helpers" do
-    it "search_vector returns surrogate + distance rows" do
+    it "search_vector returns id + surrogate + distance rows" do
       db.create_collection(name)
       db.create_vector_index("idx_#{name}_emb", on: name, column: :embedding, metric: :cosine, dim: 3)
       db.execute("INSERT INTO #{name} (id, title, embedding) VALUES ('a1', 'x', ARRAY[0.1, 0.2, 0.3])")
 
       hits = db.search_vector(name, :embedding, [0.1, 0.2, 0.3], limit: 1)
-      expect(hits.first).to include("surrogate", "distance")
+      expect(hits.first).to include("id", "surrogate", "distance")
+      expect(hits.first["distance"]).to be_within(0.01).of(0.0)
     end
 
     it "graph_stats returns scoped counters" do
