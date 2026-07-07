@@ -21,9 +21,9 @@ require "nodedb"
 # Type mapping is available via NodeDB::TypeMap.resolve(nodedb_type).
 #
 # Dataset CRUD, schema introspection, NodeDB DDL helpers
-# (create_collection / create_vector_index), and engine helpers
-# (search_vector / graph_stats) work. Sequel model plugins and TypeMap
-# casting of result values are roadmap.
+# (create_collection / create_vector_index), engine helpers
+# (search_vector / graph_stats), and schema-driven result typecasting
+# work. Sequel model plugins are roadmap.
 module Sequel
   module Adapters
     module NodeDB
@@ -67,6 +67,8 @@ module Sequel
         # NodeDB uses DESCRIBE instead of information_schema.columns.
         # DESCRIBE can emit a duplicate built-in `id` row on
         # document_strict collections (upstream BUG-007) — dedupe.
+        # `:nodedb_type` keeps the raw DESCRIBE type (e.g. "VECTOR(3)")
+        # for casts TypeMap has no pg equivalent for.
         def schema_parse_table(table_name, _opts = {})
           rows = execute(::NodeDB::SQL::Collection.describe(table_name.to_s))
           rows.reject { |r| r["field"].to_s.start_with?("__") }
@@ -74,8 +76,42 @@ module Sequel
               .map do |r|
             pg_type, _oid = ::NodeDB::TypeMap.resolve(r["type"].to_s)
             nullable = r["nullable"].to_s == "true"
-            [r["field"].to_sym, { db_type: pg_type, allow_null: nullable, primary_key: false, default: nil }]
+            [r["field"].to_sym, { db_type: pg_type, nodedb_type: r["type"].to_s,
+                                  type: schema_column_type(pg_type),
+                                  allow_null: nullable, primary_key: false, default: nil }]
           end
+        end
+
+        # ---- Result typecasting -------------------------------------
+        #
+        # NodeDB's pgwire declares every result column as text (OID 25),
+        # so driver-level conversion is impossible; cast from the DESCRIBE
+        # schema instead. Returns { column_sym => proc } for one table.
+        SCALAR_CASTS = {
+          integer:  ->(db, v) { v.to_i },
+          float:    ->(db, v) { v.to_f },
+          decimal:  ->(db, v) { BigDecimal(v) },
+          boolean:  ->(db, v) { v == "t" || v == "true" },
+          datetime: ->(db, v) { db.to_application_timestamp(v) },
+          date:     ->(db, v) { Date.parse(v) },
+          json:     ->(db, v) { JSON.parse(v) rescue v }
+        }.freeze
+        VECTOR_CAST = ->(db, v) { JSON.parse(v).map(&:to_f) rescue v }
+
+        def typecast_procs(table)
+          # ponytail: cache never invalidates on DDL; reconnect or new
+          # Database object after altering a collection mid-process.
+          @typecast_procs ||= {}
+          @typecast_procs[table] ||= schema(table).each_with_object({}) do |(col, info), h|
+            cast = if info[:nodedb_type].to_s.upcase.start_with?("VECTOR")
+                     VECTOR_CAST
+                   else
+                     SCALAR_CASTS[info[:type]]
+                   end
+            h[col] = cast if cast
+          end
+        rescue Sequel::Error, ::NodeDB::QueryError
+          @typecast_procs[table] = {}
         end
 
         # NodeDB has no schemas; return the table name unchanged.
@@ -157,13 +193,23 @@ module Sequel
         end
       end
 
-      # Sequel::Dataset subclass — minimal pass-through.
-      # Executes SQL strings against the NodeDB connection.
+      # Sequel::Dataset subclass. Executes SQL strings against the NodeDB
+      # connection and casts result values from the DESCRIBE schema (the
+      # wire is text-only — see Database#typecast_procs).
       class Dataset < Sequel::Dataset
         def fetch_rows(sql)
+          procs = result_typecast_procs
           execute(sql) do |result|
             self.columns = result.fields.map(&:to_sym) if result.respond_to?(:fields)
-            result.each { |row| yield row.transform_keys(&:to_sym) }
+            result.each do |row|
+              h = {}
+              row.each do |k, v|
+                key = k.to_sym
+                cast = procs[key]
+                h[key] = (v.nil? || !cast) ? v : cast.call(db, v)
+              end
+              yield h
+            end
           end
           self
         end
@@ -180,6 +226,18 @@ module Sequel
         # BUG-025 qualified refs matching zero rows, is fixed upstream.)
         def quoted_identifier_append(sql, name)
           sql << name.to_s
+        end
+
+        private
+
+        # Casting applies only to plain single-table datasets; joins,
+        # raw-SQL datasets, and computed aliases pass values through
+        # unchanged.
+        def result_typecast_procs
+          from = @opts[:from]
+          return {} unless from && from.length == 1 && from.first.is_a?(Symbol)
+
+          db.typecast_procs(from.first)
         end
       end
     end

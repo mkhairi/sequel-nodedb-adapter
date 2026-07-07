@@ -123,8 +123,13 @@ DB[:items].where(id: "a").update(score: 9.0)
 DB[:items].where(id: "a").delete                  # autocommit — clean path
 ```
 
-Row values arrive as strings (TypeMap casting is roadmap). Keep
-identifiers unqualified — the adapter emits bare names by design.
+Result values on plain single-table selects are cast from the DESCRIBE
+schema (NodeDB's wire declares every column as text): integer/float/
+decimal/boolean/timestamp/date/json columns come back as Ruby values,
+and `VECTOR(n)` columns come back as float arrays. Joins, raw-SQL
+datasets (`DB["SELECT ..."]`), and computed aliases pass through as
+strings. Keep identifiers unqualified — the adapter emits bare names
+by design.
 
 ### Schema introspection
 
@@ -190,15 +195,17 @@ DB.fetch(NodeDB::SQL::FTS.search(
       distance rows), `graph_stats` (scoped + tenant-wide)
 - [x] Simple-query-only execution (NodeDB lacks extended-query
       `RowDescription`; `Database#execute` uses `conn.exec` directly)
-- [x] RSpec integration suite (`spec/`, 8 examples against live NodeDB,
+- [x] RSpec integration suite (`spec/`, against live NodeDB,
       includes `nodedb://` URL connection-string coverage)
 - [x] CHANGELOG.md
+- [x] Schema-driven result typecasting on single-table selects
+      (scalars via `NodeDB::TypeMap` + Sequel's type resolution;
+      `VECTOR(n)` → float arrays)
 
 ### Pending
 - [ ] Sequel model plugins (`Sequel::Plugins::NodedbVector` /
       `NodedbGraph` / `NodedbTimeseries`) — Database-level helpers
       cover the surface today
-- [ ] Type cast result rows through `NodeDB::TypeMap` (currently strings)
 - [ ] Built-in migrator version tracking (`schema_migrations` equivalent)
 - [ ] gemspec push to RubyGems
 
