@@ -11,6 +11,24 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.6] — 2026-07-08
+
+Tracks NodeDB upstream `main` at `8e84501a` (post-v0.3.0).
+
+### Added
+
+- Schema-driven result typecasting on plain single-table selects:
+  integer / float / decimal / boolean / timestamp / date / json cast
+  from the DESCRIBE schema (the wire declares every column text);
+  `VECTOR(n)` columns cast to float arrays. Joins, raw-SQL datasets,
+  and computed aliases pass through unchanged. (#18)
+
+### Fixed
+
+- `schema_parse_table` now populates `:type` (Sequel's
+  `schema_column_type` was never applied, leaving it nil) and keeps
+  the raw DESCRIBE type as `:nodedb_type`. (#18)
+
 ## [0.1.0.alpha.5] — 2026-07-04
 
 Tracks NodeDB upstream `main` at `f8a4df44` (post-v0.3.0).
