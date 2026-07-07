@@ -175,9 +175,9 @@ module Sequel
           v.to_s
         end
 
-        # NodeDB silently matches zero rows for table-qualified column
-        # refs (BUG-025) and rejects quoted identifiers in several
-        # engine clauses — emit bare identifiers everywhere.
+        # NodeDB rejects quoted identifiers in several engine clauses —
+        # emit bare identifiers everywhere. (The other original reason,
+        # BUG-025 qualified refs matching zero rows, is fixed upstream.)
         def quoted_identifier_append(sql, name)
           sql << name.to_s
         end
