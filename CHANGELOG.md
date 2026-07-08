@@ -11,6 +11,35 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.7] — 2026-07-08
+
+Tracks NodeDB upstream `main` at `8e84501a`. Requires
+`nodedb-ruby >= 0.1.0.alpha.9`.
+
+### Added
+
+- Model plugins: `nodedb_vector` (`vector_column` +
+  `Model.search_vector`), `nodedb_graph` (`graph_insert_edge` /
+  `graph_traverse` / `graph_algo` / `graph_delete_edge` /
+  `graph_stats`), `nodedb_timeseries` (`since` / `until_time` /
+  `time_bucket`). (#20)
+
+### Fixed
+
+- `DB.transaction { }` works — Sequel sends BEGIN/COMMIT through
+  `connection_execute_method`, which defaulted to `:execute`;
+  PG::Connection spells it `exec`, so every transaction (and
+  `Sequel::Model` creation) raised NoMethodError. (#20)
+- `schema_parse_table` reports `primary_key` truthfully and shares
+  DESCRIBE normalization with the ecosystem via
+  `NodeDB::Schema.normalize`. (#21)
+
+### Tooling
+
+- Daemon-less GitHub Actions CI (Ruby 3.2 + 3.4; :integration
+  skips). (#22)
+- standardrb baseline, all offenses fixed, CI-gated. (#23)
+
 ## [0.1.0.alpha.6] — 2026-07-08
 
 Tracks NodeDB upstream `main` at `8e84501a` (post-v0.3.0).
