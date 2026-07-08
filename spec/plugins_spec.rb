@@ -1,10 +1,16 @@
 require "spec_helper"
 
 RSpec.describe "Sequel NodeDB model plugins", :integration do
-  let(:db)   { NodedbSequelHelper.db }
+  let(:db) { NodedbSequelHelper.db }
   let(:name) { "plugin_spec_#{SecureRandom.hex(4)}" }
 
-  after { db.drop_collection(name, if_exists: true) rescue nil }
+  after {
+    begin
+      db.drop_collection(name, if_exists: true)
+    rescue
+      nil
+    end
+  }
 
   describe "nodedb_vector" do
     it "search_vector returns nearest neighbours for the model's collection" do
@@ -20,7 +26,7 @@ RSpec.describe "Sequel NodeDB model plugins", :integration do
       hits = model.search_vector(:embedding, [0.1, 0.2, 0.3], limit: 1)
       expect(hits.length).to eq(1)
       expect(hits.first["distance"]).to be_within(0.01).of(0.0)
-      expect(model.vector_columns).to eq(embedding: { dim: 3, metric: :cosine })
+      expect(model.vector_columns).to eq(embedding: {dim: 3, metric: :cosine})
     end
   end
 
@@ -33,7 +39,7 @@ RSpec.describe "Sequel NodeDB model plugins", :integration do
       model.plugin :nodedb_graph
 
       model.graph_insert_edge(from: "alice", to: "bob", type: "knows")
-      model.graph_insert_edge(from: "bob", to: "carol", type: "knows", properties: { since: 2020 })
+      model.graph_insert_edge(from: "bob", to: "carol", type: "knows", properties: {since: 2020})
 
       expect(model.graph_traverse(from: "alice", depth: 2)).to include("bob", "carol")
       expect(model.graph_stats.first["edge_count"].to_i).to eq(2)

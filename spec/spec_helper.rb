@@ -2,7 +2,11 @@ require "sequel-nodedb-adapter"
 require "securerandom"
 
 module NodedbSequelHelper
-  SUPERUSER_PASSWORD = File.read(File.expand_path("~/.local/share/nodedb/.superuser_password")).strip rescue nil
+  SUPERUSER_PASSWORD = begin
+    File.read(File.expand_path("~/.local/share/nodedb/.superuser_password")).strip
+  rescue
+    nil
+  end
   NODEDB_URL = ENV.fetch("NODEDB_URL", "nodedb://nodedb:#{SUPERUSER_PASSWORD}@localhost:6432/nodedb")
 
   def self.db
@@ -12,7 +16,7 @@ module NodedbSequelHelper
   def self.available?
     db["SELECT 1 AS ok"].first
     true
-  rescue StandardError => e
+  rescue => e
     warn "NodeDB not available (#{e.message}). Set NODEDB_URL or start the daemon."
     false
   end

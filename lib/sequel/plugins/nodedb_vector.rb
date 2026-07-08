@@ -15,7 +15,7 @@ module Sequel
         end
 
         def vector_column(name, dim:, metric: :cosine)
-          vector_columns[name.to_sym] = { dim: dim, metric: metric }
+          vector_columns[name.to_sym] = {dim: dim, metric: metric}
         end
 
         # Array of { "id" => ..., "surrogate" => ..., "distance" => ... }.

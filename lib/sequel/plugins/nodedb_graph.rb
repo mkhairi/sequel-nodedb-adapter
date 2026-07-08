@@ -20,10 +20,10 @@ module Sequel
       module ClassMethods
         def graph_insert_edge(from:, to:, type:, properties: {})
           db.execute(::NodeDB::SQL::Graph.insert_edge(
-            in_collection:   table_name.to_s,
-            from:            db.literal(from.to_s),
-            to:              db.literal(to.to_s),
-            type:            db.literal(type.to_s),
+            in_collection: table_name.to_s,
+            from: db.literal(from.to_s),
+            to: db.literal(to.to_s),
+            type: db.literal(type.to_s),
             properties_json: db.literal(properties.to_json)
           ))
         end
@@ -33,8 +33,8 @@ module Sequel
         # shapes (flat ID array; {nodes:, edges:} object).
         def graph_traverse(from:, depth: 1, direction: :both)
           rows = db.execute(::NodeDB::SQL::Graph.traverse(
-            from:      db.literal(from.to_s),
-            depth:     depth,
+            from: db.literal(from.to_s),
+            depth: depth,
             direction: direction
           )).to_a
           payload = JSON.parse(rows.first&.fetch("result", "[]") || "[]")
@@ -42,8 +42,8 @@ module Sequel
           ids =
             case payload
             when Array then payload
-            when Hash  then Array(payload["nodes"]).map { |n| n["id"] }.compact
-            else            []
+            when Hash then Array(payload["nodes"]).map { |n| n["id"] }.compact
+            else []
             end
 
           ids - [from.to_s]
@@ -58,9 +58,9 @@ module Sequel
         def graph_delete_edge(from:, to:, type:)
           db.execute(::NodeDB::SQL::Graph.delete_edge(
             in_collection: table_name.to_s,
-            from:          db.literal(from.to_s),
-            to:            db.literal(to.to_s),
-            type:          db.literal(type.to_s)
+            from: db.literal(from.to_s),
+            to: db.literal(to.to_s),
+            type: db.literal(type.to_s)
           ))
         end
 

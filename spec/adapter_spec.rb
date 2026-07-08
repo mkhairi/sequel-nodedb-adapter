@@ -1,10 +1,16 @@
 require "spec_helper"
 
 RSpec.describe "Sequel NodeDB adapter", :integration do
-  let(:db)   { NodedbSequelHelper.db }
+  let(:db) { NodedbSequelHelper.db }
   let(:name) { "seq_spec_#{SecureRandom.hex(4)}" }
 
-  after { db.drop_collection(name, if_exists: true) rescue nil }
+  after {
+    begin
+      db.drop_collection(name, if_exists: true)
+    rescue
+      nil
+    end
+  }
 
   it "connects via a nodedb:// URL string" do
     expect(db["SELECT 1+1 AS r"].first).to eq(r: "2")
@@ -12,7 +18,7 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
 
   it "emits bare unqualified identifiers (NodeDB requirement)" do
     sql = db[:tbl].select(:id).where(name: "x").sql
-    expect(sql).to eq(%q{SELECT id FROM tbl WHERE (name = 'x')})
+    expect(sql).to eq("SELECT id FROM tbl WHERE (name = 'x')")
   end
 
   describe "Dataset CRUD on document_strict" do
@@ -20,14 +26,14 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
       db.create_collection(name, engine: :document_strict,
         columns: ["id TEXT PRIMARY KEY", "label TEXT", "score FLOAT"])
       db[name.to_sym].insert(id: "a", label: "alpha", score: 7.0)
-      db[name.to_sym].insert(id: "b", label: "beta",  score: 3.0)
+      db[name.to_sym].insert(id: "b", label: "beta", score: 3.0)
     end
 
     it "round-trips insert / select / where / count / update / delete" do
       ds = db[name.to_sym]
       expect(ds.select(:id, :label).order(:id).all)
-        .to eq([{ id: "a", label: "alpha" }, { id: "b", label: "beta" }])
-      expect(ds.where(label: "alpha").select(:id).all).to eq([{ id: "a" }])
+        .to eq([{id: "a", label: "alpha"}, {id: "b", label: "beta"}])
+      expect(ds.where(label: "alpha").select(:id).all).to eq([{id: "a"}])
       # Cardinality via scan, not ds.count: scalar aggregates return one
       # row per shard (10 zero partials + the real one) on current
       # upstream, so count() picks an arbitrary partial.
@@ -40,7 +46,7 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
       # Post-delete cardinality asserted via scan: NodeDB's count(*)
       # materializes a row counter on first read that DELETE never
       # decrements (upstream BUG-029), so ds.count would still say 2.
-      expect(ds.select(:id).all).to eq([{ id: "a" }])
+      expect(ds.select(:id).all).to eq([{id: "a"}])
     end
 
     it "parses the schema via DESCRIBE without duplicate id rows" do
