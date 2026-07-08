@@ -14,7 +14,8 @@ to NodeDB's `DESCRIBE`. Sits on top of `nodedb-ruby`.
 Dataset CRUD, DDL helpers (`create_collection`, `create_vector_index`),
 and engine helpers (`search_vector`, `graph_stats`) work at the
 `Database` level, plus schema-driven result typecasting on plain
-single-table selects. Sequel model plugins are roadmap. New NodeDB
+single-table selects and model plugins (`nodedb_vector`,
+`nodedb_graph`, `nodedb_timeseries`). New NodeDB
 features land first in
 `activerecord-nodedb-adapter`, then mirror here.
 
