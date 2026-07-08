@@ -22,8 +22,8 @@ require "nodedb"
 #
 # Dataset CRUD, schema introspection, NodeDB DDL helpers
 # (create_collection / create_vector_index), engine helpers
-# (search_vector / graph_stats), and schema-driven result typecasting
-# work. Sequel model plugins are roadmap.
+# (search_vector / graph_stats), schema-driven result typecasting, and
+# model plugins (nodedb_vector / nodedb_graph / nodedb_timeseries) work.
 module Sequel
   module Adapters
     module NodeDB
@@ -45,6 +45,13 @@ module Sequel
 
         def disconnect_connection(conn)
           conn.close
+        end
+
+        # Raw-connection statements (BEGIN/COMMIT/ROLLBACK from Sequel's
+        # transaction machinery) are sent by calling this method name on
+        # the driver object; PG::Connection spells it exec, not execute.
+        def connection_execute_method
+          :exec
         end
 
         def execute(sql, opts = OPTS)

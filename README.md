@@ -174,6 +174,34 @@ DB.fetch(NodeDB::SQL::FTS.search(
 )).all
 ```
 
+### Model plugins
+
+```ruby
+class Article < Sequel::Model
+  plugin :nodedb_vector
+  vector_column :embedding, dim: 384
+end
+Article.search_vector(:embedding, query_vec, limit: 10)
+
+class SocialNode < Sequel::Model
+  plugin :nodedb_graph
+end
+SocialNode.graph_insert_edge(from: "alice", to: "bob", type: "knows")
+SocialNode.graph_traverse(from: "alice", depth: 2)   # => ["bob", ...]
+SocialNode.graph_stats                                # scoped counters
+SocialNode.graph_delete_edge(from: "alice", to: "bob", type: "knows")
+
+class Metric < Sequel::Model
+  plugin :nodedb_timeseries
+end
+Metric.since(Time.now - 3600).all
+Metric.dataset.select(Metric.time_bucket("5 minutes")).group(:bucket)
+```
+
+Graph note: libpq prints harmless `could not interpret result from
+server: INSERT EDGE / GRAPH ...` lines to stderr for NodeDB's custom
+command tags — the statements succeed.
+
 ## Feature checklist
 
 ### Implemented
@@ -202,10 +230,16 @@ DB.fetch(NodeDB::SQL::FTS.search(
       (scalars via `NodeDB::TypeMap` + Sequel's type resolution;
       `VECTOR(n)` → float arrays)
 
+- [x] Sequel model plugins: `nodedb_vector` (`vector_column` +
+      `Model.search_vector`), `nodedb_graph` (`graph_insert_edge` /
+      `graph_traverse` / `graph_algo` / `graph_delete_edge` /
+      `graph_stats`), `nodedb_timeseries` (`since` / `until_time` /
+      `time_bucket`)
+- [x] Transaction statements work (`DB.transaction { }`) —
+      `connection_execute_method` is `exec`; BEGIN/COMMIT previously
+      crashed with NoMethodError
+
 ### Pending
-- [ ] Sequel model plugins (`Sequel::Plugins::NodedbVector` /
-      `NodedbGraph` / `NodedbTimeseries`) — Database-level helpers
-      cover the surface today
 - [ ] Built-in migrator version tracking (`schema_migrations` equivalent)
 - [ ] gemspec push to RubyGems
 
@@ -236,11 +270,10 @@ workaround history, retests) live in the
 - **No `schema_migrations` integration.** Use `Sequel.migration`
   blocks but skip the built-in migrator's version tracking (or stub it
   manually).
-- **Engine surfaces via raw SQL.** `DB.fetch("SHOW GRAPH STATS 'social_nodes'").all`
-  (scoped form works on current upstream),
-  `DB.fetch("SHOW MEMORY").all`, and `NodeDB::SQL::*` builders for
-  vector/graph/FTS/DDL. Sequel-native plugins are roadmap work.
-- **Row values arrive as strings** (no TypeMap casting yet — roadmap).
+- **Engine surfaces via model plugins or raw SQL.** Prefer the
+  `nodedb_vector` / `nodedb_graph` / `nodedb_timeseries` plugins;
+  anything else via `DB.fetch("SHOW MEMORY").all` and the
+  `NodeDB::SQL::*` builders.
 
 ### NodeDB-side (open upstream, affects Sequel callers)
 
