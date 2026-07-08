@@ -44,7 +44,9 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
     end
 
     it "parses the schema via DESCRIBE without duplicate id rows" do
-      expect(db.schema(name.to_sym).map(&:first)).to eq(%i[id label score])
+      schema = db.schema(name.to_sym)
+      expect(schema.map(&:first)).to eq(%i[id label score])
+      expect(schema.first.last[:primary_key]).to be(true) # from the PRIMARY KEY dup row
     end
   end
 

@@ -72,20 +72,17 @@ module Sequel
         end
 
         # NodeDB uses DESCRIBE instead of information_schema.columns.
-        # DESCRIBE can emit a duplicate built-in `id` row on
-        # document_strict collections (upstream BUG-007) — dedupe.
-        # `:nodedb_type` keeps the raw DESCRIBE type (e.g. "VECTOR(3)")
-        # for casts TypeMap has no pg equivalent for.
+        # NodeDB::Schema.normalize handles the DESCRIBE quirks in one
+        # place (duplicate primary-key rows, `__` internals) and keeps
+        # the raw type as `:nodedb_type` for casts TypeMap has no pg
+        # equivalent for (VECTOR(n)).
         def schema_parse_table(table_name, _opts = {})
-          rows = execute(::NodeDB::SQL::Collection.describe(table_name.to_s))
-          rows.reject { |r| r["field"].to_s.start_with?("__") }
-              .uniq { |r| r["field"].to_s }
-              .map do |r|
-            pg_type, _oid = ::NodeDB::TypeMap.resolve(r["type"].to_s)
-            nullable = r["nullable"].to_s == "true"
-            [r["field"].to_sym, { db_type: pg_type, nodedb_type: r["type"].to_s,
-                                  type: schema_column_type(pg_type),
-                                  allow_null: nullable, primary_key: false, default: nil }]
+          rows = execute(::NodeDB::SQL::Collection.describe(table_name.to_s)).to_a
+          ::NodeDB::Schema.normalize(rows).map do |col|
+            [col.name.to_sym, { db_type: col.pg_type, nodedb_type: col.type,
+                                type: schema_column_type(col.pg_type),
+                                allow_null: col.nullable, primary_key: col.primary_key,
+                                default: nil }]
           end
         end
 
