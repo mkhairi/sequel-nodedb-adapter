@@ -35,10 +35,10 @@ module Sequel
         def connect(server)
           opts = server_opts(server)
           ::NodeDB::Connection.connect(
-            host:     opts[:host]     || "localhost",
-            port:     (opts[:port]    || ::NodeDB::Connection::DEFAULT_PORT).to_i,
-            dbname:   opts[:database] || opts[:dbname],
-            user:     opts[:user]     || opts[:username],
+            host: opts[:host] || "localhost",
+            port: (opts[:port] || ::NodeDB::Connection::DEFAULT_PORT).to_i,
+            dbname: opts[:database] || opts[:dbname],
+            user: opts[:user] || opts[:username],
             password: opts[:password].to_s
           )
         end
@@ -79,10 +79,10 @@ module Sequel
         def schema_parse_table(table_name, _opts = {})
           rows = execute(::NodeDB::SQL::Collection.describe(table_name.to_s)).to_a
           ::NodeDB::Schema.normalize(rows).map do |col|
-            [col.name.to_sym, { db_type: col.pg_type, nodedb_type: col.type,
-                                type: schema_column_type(col.pg_type),
-                                allow_null: col.nullable, primary_key: col.primary_key,
-                                default: nil }]
+            [col.name.to_sym, {db_type: col.pg_type, nodedb_type: col.type,
+                               type: schema_column_type(col.pg_type),
+                               allow_null: col.nullable, primary_key: col.primary_key,
+                               default: nil}]
           end
         end
 
@@ -92,15 +92,27 @@ module Sequel
         # so driver-level conversion is impossible; cast from the DESCRIBE
         # schema instead. Returns { column_sym => proc } for one table.
         SCALAR_CASTS = {
-          integer:  ->(db, v) { v.to_i },
-          float:    ->(db, v) { v.to_f },
-          decimal:  ->(db, v) { BigDecimal(v) },
-          boolean:  ->(db, v) { v == "t" || v == "true" },
+          integer: ->(db, v) { v.to_i },
+          float: ->(db, v) { v.to_f },
+          decimal: ->(db, v) { BigDecimal(v) },
+          boolean: ->(db, v) { v == "t" || v == "true" },
           datetime: ->(db, v) { db.to_application_timestamp(v) },
-          date:     ->(db, v) { Date.parse(v) },
-          json:     ->(db, v) { JSON.parse(v) rescue v }
+          date: ->(db, v) { Date.parse(v) },
+          json: ->(db, v) {
+            begin
+              JSON.parse(v)
+            rescue
+              v
+            end
+          }
         }.freeze
-        VECTOR_CAST = ->(db, v) { JSON.parse(v).map(&:to_f) rescue v }
+        VECTOR_CAST = ->(db, v) {
+          begin
+            JSON.parse(v).map(&:to_f)
+          rescue
+            v
+          end
+        }
 
         def typecast_procs(table)
           # ponytail: cache never invalidates on DDL; reconnect or new
@@ -108,10 +120,10 @@ module Sequel
           @typecast_procs ||= {}
           @typecast_procs[table] ||= schema(table).each_with_object({}) do |(col, info), h|
             cast = if info[:nodedb_type].to_s.upcase.start_with?("VECTOR")
-                     VECTOR_CAST
-                   else
-                     SCALAR_CASTS[info[:type]]
-                   end
+              VECTOR_CAST
+            else
+              SCALAR_CASTS[info[:type]]
+            end
             h[col] = cast if cast
           end
         rescue Sequel::Error, ::NodeDB::QueryError
@@ -143,10 +155,10 @@ module Sequel
 
         def drop_collection(name, if_exists: false)
           sql = if if_exists
-                  ::NodeDB::SQL::Collection.drop_if_exists(name.to_s)
-                else
-                  ::NodeDB::SQL::Collection.drop(name.to_s)
-                end
+            ::NodeDB::SQL::Collection.drop_if_exists(name.to_s)
+          else
+            ::NodeDB::SQL::Collection.drop(name.to_s)
+          end
           execute(sql)
         end
 
@@ -155,7 +167,7 @@ module Sequel
           execute(::NodeDB::SQL::Collection.show).map { |r| r["name"] }
         end
 
-        def create_vector_index(index_name, on:, column:, metric: :cosine, dim:)
+        def create_vector_index(index_name, on:, column:, dim:, metric: :cosine)
           execute("CREATE VECTOR INDEX #{index_name} ON #{on} " \
                   "METRIC #{metric.to_s.upcase} DIM #{dim.to_i}")
         end
@@ -180,9 +192,9 @@ module Sequel
           ))
           result.map do |row|
             {
-              "id"        => row["id"],
+              "id" => row["id"],
               "surrogate" => row["_surrogate"] && Integer(row["_surrogate"]),
-              "distance"  => row["distance"]&.to_f
+              "distance" => row["distance"]&.to_f
             }
           end
         end
