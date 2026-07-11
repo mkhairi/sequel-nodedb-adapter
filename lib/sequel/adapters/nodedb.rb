@@ -207,6 +207,59 @@ module Sequel
             collection: scoped, verbose: verbose, as_of: as_of
           )).to_a
         end
+
+        # KV collections use `key` as PK and `value` as payload. NodeDB
+        # rejects qualified column refs, so predicates are raw
+        # `WHERE key = <literal>` rather than Dataset#where's auto-qualifying
+        # hash form.
+        def kv_get(table, key)
+          rows = execute(
+            "SELECT key, value FROM #{table} WHERE key = #{literal(key)} LIMIT 1"
+          ).to_a
+          rows.first&.fetch("value")
+        end
+
+        def kv_set(table, key, value, ttl: nil)
+          if kv_exists?(table, key)
+            execute(
+              "UPDATE #{table} SET value = #{literal(value)} " \
+              "WHERE key = #{literal(key)}"
+            )
+          else
+            execute(
+              "INSERT INTO #{table} (key, value) " \
+              "VALUES (#{literal(key)}, #{literal(value)})"
+            )
+          end
+          if ttl
+            sql = ::NodeDB::SQL::KV.set_ttl(
+              table: table.to_s,
+              key: literal(key),
+              ttl: ttl
+            )
+            execute(sql)
+          end
+          value
+        end
+
+        def kv_delete(table, key)
+          execute("DELETE FROM #{table} WHERE key = #{literal(key)}")
+        end
+
+        def kv_exists?(table, key)
+          execute(
+            "SELECT key FROM #{table} WHERE key = #{literal(key)} LIMIT 1"
+          ).to_a.any?
+        end
+
+        # Full-text search. Bare column identifier; text_match() filters
+        # rows server-side. Returns Array of { "id" => ... } hashes.
+        def search_fts(table, column, query, limit: 20, fuzzy: false)
+          execute(::NodeDB::SQL::FTS.search(
+            table: table.to_s, column: column.to_s,
+            query: literal(query), limit: limit, fuzzy: fuzzy
+          )).to_a.map { |row| {"id" => row["id"]} }
+        end
       end
 
       # Sequel::Dataset subclass. Executes SQL strings against the NodeDB

@@ -41,8 +41,8 @@ type mapping, and SQL building.
 | Connection        | Working — delegates to `NodeDB::Connection` |
 | Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals, dedupes the duplicate `id` row |
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
-| Engine helpers    | `Database#search_vector` / `#graph_stats`; other engines via `NodeDB::SQL::*` builders |
-| Test suite        | `bundle exec rspec` — 8 examples against a live daemon |
+| Engine helpers    | `Database#search_vector` / `#graph_stats` / `#kv_get` / `#kv_set` / `#kv_delete` / `#search_fts`; other engines via `NodeDB::SQL::*` builders |
+| Test suite        | `bundle exec rspec` — 20 examples against a live daemon |
 | NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-04 against `67c4572d`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
@@ -168,10 +168,15 @@ DB.search_vector(:articles, :embedding, [0.1, 0.2, 0.3], limit: 10)
 DB.graph_stats(collection: "social_nodes")   # scoped counters
 DB.graph_stats                               # tenant-wide
 
+DB.kv_set(:sessions, "sess_abc", "token-xyz")
+DB.kv_get(:sessions, "sess_abc")             # => "token-xyz"
+DB.kv_delete(:sessions, "sess_abc")
+
+DB.search_fts(:posts, :body, "machine learning", limit: 20)
+# => [{ "id" => "p1" }, ...]
+
 # Anything else via the nodedb-ruby builders + raw fetch:
-DB.fetch(NodeDB::SQL::FTS.search(
-  table: "posts", column: "body", query: "'machine learning'", limit: 20
-)).all
+DB.fetch("SHOW MEMORY").all
 ```
 
 ### Model plugins
@@ -196,7 +201,25 @@ class Metric < Sequel::Model
 end
 Metric.since(Time.now - 3600).all
 Metric.dataset.select(Metric.time_bucket("5 minutes")).group(:bucket)
+
+class Session < Sequel::Model
+  plugin :nodedb_kv
+end
+Session.kv_set("sess_abc", "token-xyz")
+Session.kv_get("sess_abc")                 # => "token-xyz"
+Session.kv_delete("sess_abc")
+
+class Post < Sequel::Model
+  plugin :nodedb_fts
+  fts_column :body
+end
+Post.fts_search("machine learning", limit: 20)  # => [{ "id" => "p1" }, ...]
+Post.fts_search("nural networks", fuzzy: true)
 ```
+
+KV note: per-row TTL (`kv_set`'s `ttl:` option) is currently broken on
+upstream NodeDB — the UPDATE targets a nonexistent `ttl` column and
+silently nulls `value`. Avoid `ttl:` until fixed upstream.
 
 Graph note: libpq prints harmless `could not interpret result from
 server: INSERT EDGE / GRAPH ...` lines to stderr for NodeDB's custom
@@ -220,7 +243,8 @@ command tags — the statements succeed.
       `collections`, `create_vector_index` / `drop_vector_index` —
       usable inside `Sequel.migration` blocks
 - [x] Engine helpers on `Database`: `search_vector` (surrogate +
-      distance rows), `graph_stats` (scoped + tenant-wide)
+      distance rows), `graph_stats` (scoped + tenant-wide),
+      `kv_get` / `kv_set` / `kv_delete`, `search_fts`
 - [x] Simple-query-only execution (NodeDB lacks extended-query
       `RowDescription`; `Database#execute` uses `conn.exec` directly)
 - [x] RSpec integration suite (`spec/`, against live NodeDB,
@@ -234,7 +258,8 @@ command tags — the statements succeed.
       `Model.search_vector`), `nodedb_graph` (`graph_insert_edge` /
       `graph_traverse` / `graph_algo` / `graph_delete_edge` /
       `graph_stats`), `nodedb_timeseries` (`since` / `until_time` /
-      `time_bucket`)
+      `time_bucket`), `nodedb_kv` (`kv_get` / `kv_set` / `kv_delete`),
+      `nodedb_fts` (`fts_column` + `Model.fts_search`)
 - [x] Transaction statements work (`DB.transaction { }`) —
       `connection_execute_method` is `exec`; BEGIN/COMMIT previously
       crashed with NoMethodError
@@ -271,9 +296,9 @@ workaround history, retests) live in the
   blocks but skip the built-in migrator's version tracking (or stub it
   manually).
 - **Engine surfaces via model plugins or raw SQL.** Prefer the
-  `nodedb_vector` / `nodedb_graph` / `nodedb_timeseries` plugins;
-  anything else via `DB.fetch("SHOW MEMORY").all` and the
-  `NodeDB::SQL::*` builders.
+  `nodedb_vector` / `nodedb_graph` / `nodedb_timeseries` /
+  `nodedb_kv` / `nodedb_fts` plugins; anything else via
+  `DB.fetch("SHOW MEMORY").all` and the `NodeDB::SQL::*` builders.
 
 ### NodeDB-side (open upstream, affects Sequel callers)
 

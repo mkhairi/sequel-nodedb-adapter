@@ -129,5 +129,46 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
       expect(row["edge_count"].to_i).to eq(1)
       expect(row["collection"]).to eq(name)
     end
+
+    it "kv_get / kv_set / kv_delete round-trip on a kv collection" do
+      db.create_collection(name, engine: :kv)
+
+      db.kv_set(name, "k1", "v1")
+      expect(db.kv_get(name, "k1")).to eq("v1")
+
+      db.kv_set(name, "k1", "v2")
+      expect(db.kv_get(name, "k1")).to eq("v2")
+
+      db.kv_delete(name, "k1")
+      expect(db.kv_get(name, "k1")).to be_nil
+    end
+
+    # SQL-shape only — never executed live. On current upstream the ttl
+    # UPDATE targets a nonexistent `ttl` column and silently nulls
+    # `value`; running it would corrupt the row. The AR concern emits
+    # the same shared-builder statement, so the shape stays asserted
+    # here in lockstep.
+    it "kv_set's ttl: option builds the shared SET ttl statement" do
+      sql = NodeDB::SQL::KV.set_ttl(table: "t", key: "'k'", ttl: 3600)
+      expect(sql).to eq("UPDATE t SET ttl = 3600 WHERE key = 'k'")
+    end
+
+    it "search_fts returns id rows for matching text, [] for no match" do
+      db.create_collection(name, engine: :document_strict,
+        columns: ["id TEXT PRIMARY KEY", "body TEXT"])
+      db.execute(::NodeDB::SQL::FTS.create_index(
+        name: "idx_#{name}_body", collection: name, column: "body"
+      ))
+      db.execute(
+        "INSERT INTO #{name} (id, body) VALUES " \
+        "('a1', 'neural networks and deep learning'), " \
+        "('a2', 'totally unrelated gardening content')"
+      )
+
+      hits = db.search_fts(name, :body, "neural networks", limit: 10)
+      expect(hits).to eq([{"id" => "a1"}])
+
+      expect(db.search_fts(name, :body, "nonexistent zzzzz", limit: 10)).to eq([])
+    end
   end
 end
