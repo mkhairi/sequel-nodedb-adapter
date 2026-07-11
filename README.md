@@ -156,8 +156,31 @@ DB.collections                       # => ["articles", "metrics", ...]
 DB.drop_collection(:articles, if_exists: true)
 ```
 
-These work inside `Sequel.migration` blocks (skip the built-in
-migrator's version tracking — see Known issues).
+These work inside `Sequel.migration` blocks. Built-in migrator version
+tracking is supported for the TimestampMigrator — see below.
+
+### Migrator version tracking
+
+```ruby
+require "sequel/adapters/nodedb/migrator_support"
+
+Sequel::Adapters::NodeDB::TimestampMigrator.run(DB, "db/migrate")
+Sequel::Adapters::NodeDB::TimestampMigrator.run(DB, "db/migrate", target: 0)   # roll back
+Sequel::Adapters::NodeDB::TimestampMigrator.is_current?(DB, "db/migrate")
+```
+
+Only the **TimestampMigrator** (filename-based versions, e.g.
+`20260711120000_create_articles.rb`) is supported — `Sequel::Migrator.run`
+itself is not, since it always instantiates the stock `Sequel::TimestampMigrator`,
+which cannot talk to NodeDB (see Known issues). IntegerMigrator
+(`schema_info`, single-row UPDATE) is not supported.
+
+The ledger collection defaults to `sequel_schema_migrations` (a
+`document_strict` collection; pass `table:` to override) and stores
+the applied migration filename in NodeDB's mandatory `id` column
+rather than a natural `filename` column — mirroring the
+activerecord-nodedb-adapter's `SchemaMigration` ledger shape, for the
+same reason (see `migrator_support.rb`'s comments).
 
 ### Engine helpers
 
@@ -238,9 +261,13 @@ command tags — the statements succeed.
 - [x] Transaction statements work (`DB.transaction { }`) —
       `connection_execute_method` is `exec`; BEGIN/COMMIT previously
       crashed with NoMethodError
+- [x] Built-in migrator version tracking —
+      `Sequel::Adapters::NodeDB::TimestampMigrator` (`lib/sequel/adapters/nodedb/migrator_support.rb`),
+      a subclass of Sequel's `TimestampMigrator` overriding the two
+      calls NodeDB can't serve (`table_exists?`, `Dataset#columns`).
+      IntegerMigrator is not supported.
 
 ### Pending
-- [ ] Built-in migrator version tracking (`schema_migrations` equivalent)
 - [ ] gemspec push to RubyGems
 
 ## Known issues
@@ -267,9 +294,18 @@ workaround history, retests) live in the
   — or use `engine: :document_strict`.
 - **No prepared statements.** Sequel's default path is fine here —
   `Database#execute` uses simple-query `conn.exec` directly.
-- **No `schema_migrations` integration.** Use `Sequel.migration`
-  blocks but skip the built-in migrator's version tracking (or stub it
-  manually).
+- **Migrator version tracking is TimestampMigrator-only.**
+  `Sequel::Migrator.run` (the stock entry point) always builds a
+  `Sequel::TimestampMigrator`, which can't talk to NodeDB: its
+  `schema_dataset` calls `Database#table_exists?` (which relies on
+  NodeDB raising `Sequel::DatabaseError` for a missing table — it
+  raises `NodeDB::QueryError` instead) and `Dataset#columns` (which
+  runs `SELECT * FROM <table> LIMIT 0` — NodeDB collapses *any*
+  zero-row `SELECT *`'s column descriptor to a single placeholder
+  field named `"result"`, so a freshly created, still-empty ledger
+  never reports its real column). Use
+  `Sequel::Adapters::NodeDB::TimestampMigrator.run` instead (see
+  Migrator version tracking above). IntegerMigrator is unsupported.
 - **Engine surfaces via model plugins or raw SQL.** Prefer the
   `nodedb_vector` / `nodedb_graph` / `nodedb_timeseries` plugins;
   anything else via `DB.fetch("SHOW MEMORY").all` and the
