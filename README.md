@@ -2,8 +2,8 @@
 
 > ## ⚠️ ALPHA — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.4`**. Tracks NodeDB upstream `main` at
-> `67c4572d` (post-v0.3.0, retested 2026-07-04).
+> Version: **`0.1.0.alpha.7`**. Tracks NodeDB upstream `main` at
+> `f8a4df44` (post-v0.3.0, retested 2026-07-04).
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has
 > **never been used or tested in any production environment**. Core
@@ -30,7 +30,7 @@ type mapping, and SQL building.
 | ---- | ---- |
 | [`mkhairi/nodedb-ruby`](https://github.com/mkhairi/nodedb-ruby) | core — pgwire connection, type map, SQL builders |
 | [`mkhairi/activerecord-nodedb-adapter`](https://github.com/mkhairi/activerecord-nodedb-adapter) | Rails ActiveRecord adapter (production-ready API surface) |
-| [`mkhairi/sequel-nodedb-adapter`](https://github.com/mkhairi/sequel-nodedb-adapter) | **this gem** — Sequel adapter (stub) |
+| [`mkhairi/sequel-nodedb-adapter`](https://github.com/mkhairi/sequel-nodedb-adapter) | **this gem** — Sequel adapter (experimental — Dataset CRUD + model plugins) |
 | [`mkhairi/nodedb-on-rails`](https://github.com/mkhairi/nodedb-on-rails) | Rails 8 sample app exercising every NodeDB engine |
 
 ## Status
@@ -42,17 +42,17 @@ type mapping, and SQL building.
 | Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals, dedupes the duplicate `id` row |
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
 | Engine helpers    | `Database#search_vector` / `#graph_stats`; other engines via `NodeDB::SQL::*` builders |
-| Test suite        | `bundle exec rspec` — 8 examples against a live daemon |
-| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-04 against `67c4572d`) |
+| Test suite        | `bundle exec rspec` — 14 examples, 0 failures, against a live daemon |
+| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-04 against `f8a4df44`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
 ## Requirements
 
 - Ruby 3.2+
 - `sequel` >= 5.0
-- `nodedb-ruby` >= 0.1.0.alpha.5 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
+- `nodedb-ruby` >= 0.1.0.alpha.9 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
 - A running NodeDB instance on `pgwire` (default `localhost:6432`) —
-  **latest upstream `main` recommended** (verified against `67c4572d`).
+  **latest upstream `main` recommended** (verified against `f8a4df44`).
   Post-June builds changed the on-disk format; start daemons on a
   fresh data directory.
 
