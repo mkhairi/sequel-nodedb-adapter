@@ -49,6 +49,54 @@ RSpec.describe "Sequel NodeDB model plugins", :integration do
     end
   end
 
+  describe "nodedb_kv" do
+    it "set / get / delete round-trip via the model" do
+      db.create_collection(name, engine: :kv)
+      model = Sequel::Model(db[name.to_sym])
+      model.plugin :nodedb_kv
+
+      model.kv_set("k1", "v1")
+      expect(model.kv_get("k1")).to eq("v1")
+
+      model.kv_set("k1", "v2")
+      expect(model.kv_get("k1")).to eq("v2")
+
+      model.kv_delete("k1")
+      expect(model.kv_get("k1")).to be_nil
+    end
+
+    it "kv_get returns nil for a missing key" do
+      db.create_collection(name, engine: :kv)
+      model = Sequel::Model(db[name.to_sym])
+      model.plugin :nodedb_kv
+
+      expect(model.kv_get("missing")).to be_nil
+    end
+  end
+
+  describe "nodedb_fts" do
+    it "fts_column registers and fts_search returns matching ids" do
+      db.create_collection(name, engine: :document_strict,
+        columns: ["id TEXT PRIMARY KEY", "body TEXT"])
+      db.execute(::NodeDB::SQL::FTS.create_index(
+        name: "idx_#{name}_body", collection: name, column: "body"
+      ))
+      db.execute(
+        "INSERT INTO #{name} (id, body) VALUES " \
+        "('a1', 'neural networks and deep learning'), " \
+        "('a2', 'totally unrelated gardening content')"
+      )
+
+      model = Sequel::Model(db[name.to_sym])
+      model.plugin :nodedb_fts
+      model.fts_column :body
+
+      expect(model.fts_columns).to eq(body: {language: "english"})
+      expect(model.fts_search("neural networks", limit: 10)).to eq([{"id" => "a1"}])
+      expect(model.fts_search("nonexistent zzzzz", limit: 10)).to eq([])
+    end
+  end
+
   describe "nodedb_timeseries" do
     it "filters with since/until_time and buckets with time_bucket" do
       db.create_collection(name, engine: :timeseries,
