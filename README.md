@@ -251,7 +251,7 @@ workaround history, retests) live in the
 [AR adapter issue tracker][ar-bugs] — titles prefixed
 `[upstream:NodeDB] BUG-NNN`; the user-facing summary is
 [KNOWN_ISSUES.md][ar-known]. Last retested:
-**2026-07-04** against upstream `main` at `f8a4df44`.
+**2026-07-20** against upstream `main` at `eea86b279` (v0.4.0 final).
 
 [ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/issues?q=%22%5Bupstream%3ANodeDB%5D%22
 [ar-known]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/KNOWN_ISSUES.md
@@ -260,8 +260,9 @@ workaround history, retests) live in the
 
 - **Identifiers are emitted bare and unqualified.** NodeDB stores
   identifiers as written (the adapter disables Sequel's SQL-standard
-  upcase folding) and silently matches zero rows for table-qualified
-  refs (BUG-025) — avoid `Sequel[:t][:c]` qualification and joins.
+  upcase folding). Table-qualified refs silently matched zero rows for
+  most of the alpha (BUG-025, since fixed upstream) — bare columns
+  remain the convention here; joins are still untested territory.
 - **`SELECT *` on schemaless document collections returns wrapped
   JSON.** Project explicit columns: `DB[:articles].select(:id, :title)`
   — or use `engine: :document_strict`.
@@ -277,32 +278,23 @@ workaround history, retests) live in the
 
 ### NodeDB-side (open upstream, affects Sequel callers)
 
-- **BUG-008** — DELETE committed inside `DB.transaction { }` leaves a
-  stale PK point-lookup phantom (`WHERE id = ...` returns the deleted
-  row until the key is re-inserted). Sequel's default autocommit
-  deletes (`DB[:t].where(...).delete`) take the clean path — prefer
-  them.
-- **Bitemporal caveats** — INSERT/DELETE committed inside explicit
-  transactions are lost on `BITEMPORAL` collections (BUG-024): write
-  autocommit (Sequel's default). Never DROP + CREATE a bitemporal
-  collection under the same name (BUG-028) and never name a column
-  `bitemporal_id` (BUG-026). Reads — plain SELECT and
-  `AS OF SYSTEM TIME` history — work on current upstream.
-- **BUG-029** — `count(*)` materializes a per-collection row counter
-  on first read that DELETE never decrements; counts drift upward
-  permanently once rows are deleted. Assert cardinality via scans
-  (`ds.select(:id).all.length`) around delete operations.
-- **BUG-003** — libpq's `PQserverVersion()` raises; query
-  `current_setting('server_version_num')` instead.
+- **BUG-047** — every `GRAPH INSERT EDGE` (the `nodedb_graph` plugin's
+  `add_edge`) double-counts: one insert registers 2 edges and duplicate
+  endpoint nodes in graph stats. Treat graph counters as unreliable.
+- **BUG-050** — after any graph edge insert, the daemon's next restart
+  hits a descriptor version anomaly for that collection and all DDL
+  times out permanently (data-directory rebuild required). Avoid graph
+  writes on data directories you intend to keep.
+- **BUG-045** — grouped-aggregate labeling is cached per session:
+  re-running the same grouped aggregate with different select-list
+  aliasing returns empty aggregate cells. Keep one labeling per
+  connection, or reconnect.
+- **BUG-046** — `'"name"'::regclass` (quoted-identifier form) silently
+  resolves to NULL, so pg_catalog queries filtered that way return 0
+  rows; `DB.fetch("SHOW COLLECTIONS").all` and the adapter's
+  DESCRIBE-based `db.schema` are the safe paths.
 - **BUG-014** — advisory locks return empty rows (upstream won't-fix
   on pgwire).
-- **BUG-019** — pg_catalog gaps: `db.tables` may fail or narrow;
-  `DB.fetch("SHOW COLLECTIONS").all` is the safe fallback.
-- **BUG-023** — `MATCH ... IN <collection>` ignores collection scope;
-  avoid MATCH until upstream fixes it.
-- **BUG-030** — GROUP BY output drops group-key column aliases (and
-  returns empty cells for unaliased aggregates) on current upstream.
-  Alias your aggregates and read group keys by base column name.
 
 ## Roadmap
 
