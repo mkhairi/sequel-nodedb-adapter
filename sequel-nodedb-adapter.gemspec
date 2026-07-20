@@ -15,7 +15,12 @@ Gem::Specification.new do |spec|
 
   spec.required_ruby_version = ">= 3.2.0"
 
-  spec.files = Dir["lib/**/*", "LICENSE", "README.md"]
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["rubygems_mfa_required"] = "true"
+
+  spec.files = Dir["lib/**/*", "LICENSE.md", "README.md"]
   spec.require_paths = ["lib"]
 
   spec.add_dependency "sequel", ">= 5.0"
