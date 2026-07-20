@@ -43,9 +43,9 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
       expect(ds.where(id: "a").select(:score).first).to eq(score: 9.0)
 
       ds.where(id: "b").delete
-      # Post-delete cardinality asserted via scan: NodeDB's count(*)
-      # materializes a row counter on first read that DELETE never
-      # decrements (upstream BUG-029), so ds.count would still say 2.
+      # Post-delete cardinality asserted via scan. (Historically forced
+      # by upstream BUG-029 — count(*) never decremented after DELETE —
+      # since fixed; the scan assert is kept because it works either way.)
       expect(ds.select(:id).all).to eq([{id: "a"}])
     end
 
