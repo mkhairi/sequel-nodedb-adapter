@@ -30,7 +30,7 @@ type mapping, and SQL building.
 | ---- | ---- |
 | [`mkhairi/nodedb-ruby`](https://github.com/mkhairi/nodedb-ruby) | core — pgwire connection, type map, SQL builders |
 | [`mkhairi/activerecord-nodedb-adapter`](https://github.com/mkhairi/activerecord-nodedb-adapter) | Rails ActiveRecord adapter (production-ready API surface) |
-| [`mkhairi/sequel-nodedb-adapter`](https://github.com/mkhairi/sequel-nodedb-adapter) | **this gem** — Sequel adapter (stub) |
+| [`mkhairi/sequel-nodedb-adapter`](https://github.com/mkhairi/sequel-nodedb-adapter) | **this gem** — Sequel adapter (experimental — Dataset CRUD + model plugins) |
 | [`mkhairi/nodedb-on-rails`](https://github.com/mkhairi/nodedb-on-rails) | Rails 8 sample app exercising every NodeDB engine |
 
 ## Status
@@ -42,7 +42,7 @@ type mapping, and SQL building.
 | Schema parsing    | Working — `DESCRIBE`-based, hides `__` internals, dedupes the duplicate `id` row |
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
 | Engine helpers    | `Database#search_vector` / `#graph_stats` / `#kv_get` / `#kv_set` / `#kv_delete` / `#search_fts`; other engines via `NodeDB::SQL::*` builders |
-| Test suite        | `bundle exec rspec` — 20 examples against a live daemon |
+| Test suite        | `bundle exec rspec` — 24 examples, 0 failures, against a live daemon |
 | NodeDB versions   | **0.4.0+** (latest retest 2026-07-28 against `main` at `87053aa7b`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
