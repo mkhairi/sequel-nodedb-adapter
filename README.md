@@ -2,8 +2,8 @@
 
 > ## ⚠️ ALPHA — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.4`**. Tracks NodeDB upstream `main` at
-> `67c4572d` (post-v0.3.0, retested 2026-07-04).
+> Version: **`0.1.0.alpha.7`**. Requires NodeDB **0.4.0 or newer**
+> (verified against post-0.4.0 upstream `main` at `87053aa7b`).
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has
 > **never been used or tested in any production environment**. Core
@@ -43,18 +43,21 @@ type mapping, and SQL building.
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
 | Engine helpers    | `Database#search_vector` / `#graph_stats` / `#kv_get` / `#kv_set` / `#kv_delete` / `#search_fts`; other engines via `NodeDB::SQL::*` builders |
 | Test suite        | `bundle exec rspec` — 20 examples against a live daemon |
-| NodeDB versions   | 0.1.x through post-v0.3.0 `main` (latest retest 2026-07-04 against `67c4572d`) |
+| NodeDB versions   | **0.4.0+** (latest retest 2026-07-28 against `main` at `87053aa7b`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
 ## Requirements
 
 - Ruby 3.2+
 - `sequel` >= 5.0
-- `nodedb-ruby` >= 0.1.0.alpha.5 (transitively requires the v0.3.0 SQL builders for `SHOW GRAPH STATS`, `BITEMPORAL` flags, and `PERSONALIZATION`)
-- A running NodeDB instance on `pgwire` (default `localhost:6432`) —
-  **latest upstream `main` recommended** (verified against `67c4572d`).
-  Post-June builds changed the on-disk format; start daemons on a
-  fresh data directory.
+- `nodedb-ruby` >= 0.1.0.alpha.9 (its `main` is required for the
+  current timeseries TIME_KEY DDL, which no alpha carries yet)
+- **NodeDB 0.4.0 or newer**, pgwire on `localhost:6432` by default.
+  Earlier lines are not supported: the SQL builders emit DDL and engine
+  clauses (`SHOW GRAPH STATS`, `BITEMPORAL` flags, `PERSONALIZATION`)
+  that 0.3.x rejects, and a pre-0.4 data directory makes the daemon
+  panic at boot — start fresh. Verified against post-0.4.0 upstream
+  `main` at `87053aa7b`.
 
 ## Installation
 
@@ -300,8 +303,7 @@ command tags — the statements succeed.
 Tracks the **latest upstream only** (resolved issues pruned; git
 history keeps the record). Canonical per-bug records (reproductions,
 workaround history, retests) live in the
-[AR adapter issue tracker][ar-bugs] — titles prefixed
-`[upstream:NodeDB] BUG-NNN`; the user-facing summary is
+[AR adapter issue tracker][ar-bugs]; the user-facing summary is
 [KNOWN_ISSUES.md][ar-known]. Last retested:
 **2026-07-20** against upstream `main` at `eea86b279` (v0.4.0 final).
 
@@ -336,26 +338,6 @@ workaround history, retests) live in the
   `nodedb_vector` / `nodedb_graph` / `nodedb_timeseries` /
   `nodedb_kv` / `nodedb_fts` plugins; anything else via
   `DB.fetch("SHOW MEMORY").all` and the `NodeDB::SQL::*` builders.
-
-### NodeDB-side (open upstream, affects Sequel callers)
-
-- **BUG-062** — the first row written to a timeseries collection created
-  with an explicit column list loses every non-TIME_KEY column. Later
-  inserts are stored correctly and nothing reports the loss.
-- **BUG-063** — the TIME_KEY column name declared in DDL is
-  authoritative; upstream no longer projects it as `timestamp`. The
-  `nodedb_timeseries` plugin filters on `timestamp`, so declare the
-  column `timestamp BIGINT TIME_KEY` (what
-  `create_collection(engine: :timeseries)` emits) or write your own
-  filters.
-- **BUG-058** — `SEARCH` composes as a derived table but not inside an
-  `IN` predicate; the `IN (SELECT id FROM (SEARCH ...) s)` spelling
-  silently returns zero rows. Use two round trips.
-- **BUG-057** — `ROLLBACK AND CHAIN` is rejected as an unsupported
-  statement type.
-- **Advisory locks are unimplemented** — the `pg_advisory_*` family
-  raises "function does not exist" (upstream won't-fix on pgwire).
-  This adapter ships no substitute.
 
 ## Roadmap
 
