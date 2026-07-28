@@ -291,8 +291,7 @@ module Sequel
         end
 
         # NodeDB rejects quoted identifiers in several engine clauses —
-        # emit bare identifiers everywhere. (The other original reason,
-        # BUG-025 qualified refs matching zero rows, is fixed upstream.)
+        # emit bare identifiers everywhere.
         def quoted_identifier_append(sql, name)
           sql << name.to_s
         end

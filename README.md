@@ -313,8 +313,8 @@ workaround history, retests) live in the
 - **Identifiers are emitted bare and unqualified.** NodeDB stores
   identifiers as written (the adapter disables Sequel's SQL-standard
   upcase folding). Table-qualified refs silently matched zero rows for
-  most of the alpha (BUG-025, since fixed upstream) — bare columns
-  remain the convention here; joins are still untested territory.
+  most of the alpha — bare columns remain the convention here; joins
+  are still untested territory.
 - **`SELECT *` on schemaless document collections returns wrapped
   JSON.** Project explicit columns: `DB[:articles].select(:id, :title)`
   — or use `engine: :document_strict`.
@@ -339,23 +339,23 @@ workaround history, retests) live in the
 
 ### NodeDB-side (open upstream, affects Sequel callers)
 
-- **BUG-047** — every `GRAPH INSERT EDGE` (the `nodedb_graph` plugin's
-  `add_edge`) double-counts: one insert registers 2 edges and duplicate
-  endpoint nodes in graph stats. Treat graph counters as unreliable.
-- **BUG-050** — after any graph edge insert, the daemon's next restart
-  hits a descriptor version anomaly for that collection and all DDL
-  times out permanently (data-directory rebuild required). Avoid graph
-  writes on data directories you intend to keep.
-- **BUG-045** — grouped-aggregate labeling is cached per session:
-  re-running the same grouped aggregate with different select-list
-  aliasing returns empty aggregate cells. Keep one labeling per
-  connection, or reconnect.
-- **BUG-046** — `'"name"'::regclass` (quoted-identifier form) silently
-  resolves to NULL, so pg_catalog queries filtered that way return 0
-  rows; `DB.fetch("SHOW COLLECTIONS").all` and the adapter's
-  DESCRIBE-based `db.schema` are the safe paths.
-- **BUG-014** — advisory locks return empty rows (upstream won't-fix
-  on pgwire).
+- **BUG-062** — the first row written to a timeseries collection created
+  with an explicit column list loses every non-TIME_KEY column. Later
+  inserts are stored correctly and nothing reports the loss.
+- **BUG-063** — the TIME_KEY column name declared in DDL is
+  authoritative; upstream no longer projects it as `timestamp`. The
+  `nodedb_timeseries` plugin filters on `timestamp`, so declare the
+  column `timestamp BIGINT TIME_KEY` (what
+  `create_collection(engine: :timeseries)` emits) or write your own
+  filters.
+- **BUG-058** — `SEARCH` composes as a derived table but not inside an
+  `IN` predicate; the `IN (SELECT id FROM (SEARCH ...) s)` spelling
+  silently returns zero rows. Use two round trips.
+- **BUG-057** — `ROLLBACK AND CHAIN` is rejected as an unsupported
+  statement type.
+- **Advisory locks are unimplemented** — the `pg_advisory_*` family
+  raises "function does not exist" (upstream won't-fix on pgwire).
+  This adapter ships no substitute.
 
 ## Roadmap
 
