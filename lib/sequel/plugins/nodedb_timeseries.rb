@@ -1,8 +1,9 @@
 module Sequel
   module Plugins
     # Timeseries helpers for models over NodeDB timeseries collections.
-    # NodeDB renames the TIME_KEY column to `timestamp` internally and
-    # filters on epoch-millisecond integers; these wrap that away.
+    # Assumes the TIME_KEY column is named `timestamp` (NodeDB's default, and
+    # what `create_collection(engine: :timeseries)` declares) and that it holds
+    # epoch-millisecond integers; these wrap that away.
     #
     #   class Metric < Sequel::Model
     #     plugin :nodedb_timeseries
