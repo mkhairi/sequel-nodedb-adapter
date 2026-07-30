@@ -33,6 +33,7 @@ module Sequel
         # shapes (flat ID array; {nodes:, edges:} object).
         def graph_traverse(from:, depth: 1, direction: :both)
           rows = db.execute(::NodeDB::SQL::Graph.traverse(
+            in_collection: table_name.to_s,
             from: db.literal(from.to_s),
             depth: depth,
             direction: direction
