@@ -7,7 +7,10 @@ module NodedbSequelHelper
   rescue
     nil
   end
-  NODEDB_URL = ENV.fetch("NODEDB_URL", "nodedb://nodedb:#{SUPERUSER_PASSWORD}@localhost:6432/nodedb")
+  # The bootstrapped database is named `default`. pgwire binds it whatever
+  # name is requested, but the native transport resolves the name against
+  # the catalog and rejects an unknown one, so use the real name.
+  NODEDB_URL = ENV.fetch("NODEDB_URL", "nodedb://nodedb:#{SUPERUSER_PASSWORD}@localhost:6432/default")
 
   def self.db
     @db ||= Sequel.connect(NODEDB_URL)
