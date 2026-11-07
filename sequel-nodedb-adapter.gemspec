@@ -24,5 +24,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "sequel", ">= 5.0"
-  spec.add_dependency "nodedb-ruby", ">= 0.1.0.alpha.9"
+  spec.add_dependency "nodedb-ruby", ">= 0.1.0.alpha.11"
 end

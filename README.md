@@ -57,7 +57,7 @@ type mapping, and SQL building.
   clauses (`SHOW GRAPH STATS`, `BITEMPORAL` flags, `PERSONALIZATION`)
   that 0.3.x rejects, and a pre-0.4 data directory makes the daemon
   panic at boot — start fresh. Verified against post-0.4.0 upstream
-  `main` at `87053aa7b`.
+  `main` at `4b7784861`.
 
 ## Installation
 

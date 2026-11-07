@@ -108,7 +108,8 @@ module Sequel
         }.freeze
         VECTOR_CAST = ->(db, v) {
           begin
-            JSON.parse(v).map(&:to_f)
+            # NodeDB renders a vector as JSON or as {0.1,0.2}, by query shape.
+            JSON.parse(v.tr("{}", "[]")).map(&:to_f)
           rescue
             v
           end
@@ -208,10 +209,7 @@ module Sequel
           )).to_a
         end
 
-        # KV collections use `key` as PK and `value` as payload. NodeDB
-        # rejects qualified column refs, so predicates are raw
-        # `WHERE key = <literal>` rather than Dataset#where's auto-qualifying
-        # hash form.
+        # KV collections use `key` as PK and `value` as payload.
         def kv_get(table, key)
           rows = execute(
             "SELECT key, value FROM #{table} WHERE key = #{literal(key)} LIMIT 1"
@@ -220,17 +218,12 @@ module Sequel
         end
 
         def kv_set(table, key, value, ttl: nil)
-          if kv_exists?(table, key)
-            execute(
-              "UPDATE #{table} SET value = #{literal(value)} " \
-              "WHERE key = #{literal(key)}"
-            )
-          else
-            execute(
-              "INSERT INTO #{table} (key, value) " \
-              "VALUES (#{literal(key)}, #{literal(value)})"
-            )
-          end
+          # NodeDB rejects a plain UPDATE on a (key, value) collection.
+          execute(
+            "INSERT INTO #{table} (key, value) " \
+            "VALUES (#{literal(key)}, #{literal(value)}) " \
+            "ON CONFLICT (key) DO UPDATE SET value = #{literal(value)}"
+          )
           if ttl
             sql = ::NodeDB::SQL::KV.set_ttl(
               table: table.to_s,
