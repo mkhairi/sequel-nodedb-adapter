@@ -100,7 +100,7 @@ RSpec.describe "Sequel NodeDB model plugins", :integration do
   describe "nodedb_timeseries" do
     it "filters with since/until_time and buckets with time_bucket" do
       db.create_collection(name, engine: :timeseries,
-        columns: ["timestamp BIGINT TIME_KEY", "host TEXT", "value FLOAT"])
+        columns: ["timestamp TIMESTAMP TIME_KEY", "host TEXT", "value FLOAT"])
       now_ms = Time.now.to_i * 1000
       db.execute("INSERT INTO #{name} (timestamp, host, value) VALUES " \
                  "(#{now_ms - 7_200_000}, 'web1', 1.0), (#{now_ms}, 'web1', 2.0)")
