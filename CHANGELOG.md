@@ -11,6 +11,26 @@ deprecation. Bump `N` in `0.1.0.alpha.N` for any user-visible change.
 This gem is a **stub**. New NodeDB features land first in
 `activerecord-nodedb-adapter` and mirror here.
 
+## [0.1.0.alpha.8] — 2026-11-07
+
+Tracks NodeDB upstream 0.7.0-dev at `4b7784861`. Requires
+`nodedb-ruby >= 0.1.0.alpha.11`.
+
+### Added
+
+- Model plugins: `nodedb_kv` and `nodedb_fts`.
+- Timestamp migrator version tracking on a `document_strict` ledger.
+
+### Fixed
+
+- `kv_set` overwrites an existing key through `INSERT ... ON CONFLICT`.
+- `VECTOR` columns typecast from the `{0.1,0.2}` rendering.
+- `GRAPH TRAVERSE` passes its collection. (#35)
+
+### Tooling
+
+- CI tests Ruby 4.0 and clones `nodedb-ruby` from its release tag.
+
 ## [0.1.0.alpha.7] — 2026-07-08
 
 Tracks NodeDB upstream `main` at `8e84501a`. Requires

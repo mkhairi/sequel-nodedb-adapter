@@ -2,8 +2,8 @@
 
 > ## ⚠️ ALPHA — DO NOT USE IN PRODUCTION
 >
-> Version: **`0.1.0.alpha.7`**. Requires NodeDB **0.4.0 or newer**
-> (verified against post-0.4.0 upstream `main` at `87053aa7b`).
+> Version: **`0.1.0.alpha.8`**. Requires NodeDB **0.7.0-dev or newer**
+> (verified against upstream `main` at `4b7784861`).
 >
 > This adapter is **experimental, incomplete, and unaudited**. It has
 > **never been used or tested in any production environment**. Core
@@ -43,21 +43,18 @@ type mapping, and SQL building.
 | Dataset           | Working — insert / select / where / count / update / delete round-trip; bare unqualified identifiers emitted (NodeDB requirement) |
 | Engine helpers    | `Database#search_vector` / `#graph_stats` / `#kv_get` / `#kv_set` / `#kv_delete` / `#search_fts`; other engines via `NodeDB::SQL::*` builders |
 | Test suite        | `bundle exec rspec` — 24 examples, 0 failures, against a live daemon |
-| NodeDB versions   | **0.4.0+** (latest retest 2026-07-28 against `main` at `87053aa7b`) |
+| NodeDB versions   | **0.7.0-dev+** (latest retest 2026-11-07 against `main` at `4b7784861`) |
 | Stability         | **Experimental.** Use the AR adapter for production-shaped work today. |
 
 ## Requirements
 
 - Ruby 3.2+
 - `sequel` >= 5.0
-- `nodedb-ruby` >= 0.1.0.alpha.9 (its `main` is required for the
-  current timeseries TIME_KEY DDL, which no alpha carries yet)
-- **NodeDB 0.4.0 or newer**, pgwire on `localhost:6432` by default.
-  Earlier lines are not supported: the SQL builders emit DDL and engine
-  clauses (`SHOW GRAPH STATS`, `BITEMPORAL` flags, `PERSONALIZATION`)
-  that 0.3.x rejects, and a pre-0.4 data directory makes the daemon
-  panic at boot — start fresh. Verified against post-0.4.0 upstream
-  `main` at `4b7784861`.
+- `nodedb-ruby` >= 0.1.0.alpha.11
+- **NodeDB 0.7.0-dev or newer**, pgwire on `localhost:6432` by default.
+  Verified against upstream `main` at `4b7784861`. Earlier builds are
+  untested. A pre-0.4 data directory makes the daemon panic at boot, so
+  start fresh.
 
 ## Installation
 
@@ -305,7 +302,7 @@ history keeps the record). Canonical per-bug records (reproductions,
 workaround history, retests) live in the
 [AR adapter issue tracker][ar-bugs]; the user-facing summary is
 [KNOWN_ISSUES.md][ar-known]. Last retested:
-**2026-07-20** against upstream `main` at `eea86b279` (v0.4.0 final).
+**2026-11-07** against upstream `main` at `4b7784861`.
 
 [ar-bugs]: https://github.com/mkhairi/activerecord-nodedb-adapter/issues?q=%22%5Bupstream%3ANodeDB%5D%22
 [ar-known]: https://github.com/mkhairi/activerecord-nodedb-adapter/blob/main/docs/KNOWN_ISSUES.md
