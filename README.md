@@ -108,6 +108,11 @@ URL-style works too:
 DB = Sequel.connect("nodedb://nodedb:#{ENV['NODEDB_PASSWORD']}@localhost:6432/myapp")
 ```
 
+libpq options pass through from the options hash or the URL query:
+`sslmode`, `sslrootcert`, `sslcert`, `sslkey`, `sslcrl`, `connect_timeout`,
+`application_name` and the `keepalives*` settings. For example
+`nodedb://nodedb:...@db.example:6432/myapp?sslmode=verify-full`.
+
 ### Dataset CRUD
 
 ```ruby
