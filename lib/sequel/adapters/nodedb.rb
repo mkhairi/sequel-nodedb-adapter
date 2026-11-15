@@ -32,6 +32,15 @@ module Sequel
       class Database < Sequel::Database
         set_adapter_scheme :nodedb
 
+        # libpq options passed through from the URL query or options hash.
+        # Without them, sslmode=verify-full silently fell back to libpq's
+        # default (prefer: no certificate check).
+        PG_CONNECT_OPTIONS = %i[
+          sslmode sslrootcert sslcert sslkey sslcrl connect_timeout
+          application_name keepalives keepalives_idle keepalives_interval
+          keepalives_count
+        ].freeze
+
         def connect(server)
           opts = server_opts(server)
           ::NodeDB::Connection.connect(
@@ -39,7 +48,8 @@ module Sequel
             port: (opts[:port] || ::NodeDB::Connection::DEFAULT_PORT).to_i,
             dbname: opts[:database] || opts[:dbname],
             user: opts[:user] || opts[:username],
-            password: opts[:password].to_s
+            password: opts[:password].to_s,
+            **opts.slice(*PG_CONNECT_OPTIONS).compact
           )
         end
 
