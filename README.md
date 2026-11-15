@@ -131,6 +131,11 @@ datasets (`DB["SELECT ..."]`), and computed aliases pass through as
 strings. Keep identifiers unqualified — the adapter emits bare names
 by design.
 
+`Sequel::Model` writes work: `save` and `destroy` check the affected-row
+count NodeDB reports. NodeDB returns no generated id, so a model sets its
+primary key before `create` (for example `unrestrict_primary_key` plus an
+explicit `id:`, or a `before_create` hook that assigns a UUID).
+
 ### Schema introspection
 
 ```ruby

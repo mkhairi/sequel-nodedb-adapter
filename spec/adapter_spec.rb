@@ -48,6 +48,20 @@ RSpec.describe "Sequel NodeDB adapter", :integration do
       expect(ds.select(:id).all).to eq([{id: "a"}])
     end
 
+    it "saves and destroys through Sequel::Model" do
+      model = Class.new(Sequel::Model(db[name.to_sym])).tap(&:unrestrict_primary_key)
+      rec = model["a"]
+      rec.score = 11.0
+      rec.save
+      expect(db[name.to_sym].where(id: "a").select(:score).first).to eq(score: 11.0)
+
+      model["b"].destroy
+      expect(db[name.to_sym].select(:id).all).to eq([{id: "a"}])
+
+      model.create(id: "c", label: "gamma", score: 1.0)
+      expect(model["c"].label).to eq("gamma")
+    end
+
     it "parses the schema via DESCRIBE without duplicate id rows" do
       schema = db.schema(name.to_sym)
       expect(schema.map(&:first)).to eq(%i[id label score])

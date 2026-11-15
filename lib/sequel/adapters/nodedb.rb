@@ -64,6 +64,18 @@ module Sequel
           end
         end
 
+        # Sequel's Model checks the affected-row count of UPDATE and DELETE.
+        def execute_dui(sql, opts = OPTS)
+          execute(sql, opts).cmd_tuples
+        end
+
+        # NodeDB sends no RETURNING payload and has no sequences, so there is
+        # no generated id to return. Models set their primary key client-side.
+        def execute_insert(sql, opts = OPTS)
+          execute(sql, opts)
+          nil
+        end
+
         # Wire our Dataset subclass in — without this Sequel hands out
         # bare Sequel::Dataset instances, which have no fetch_rows and
         # crash on the first query.
